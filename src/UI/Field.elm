@@ -166,7 +166,7 @@ underlined overrides label ((Config c) as conf) =
             :: Background.color UI.transparent
             :: Border.color (borderColor c.valid Color.grayValue1)
             :: E.focused
-                [ Border.color |> E.withDecoration .primaryColor
+                [ Border.color |> E.withDecoration (.primary << .color)
                 , Font.color (Color.toUI Color.blackValue)
                 ]
             :: E.width E.fill
@@ -298,7 +298,7 @@ base overrides label_ (Config c) onChange value =
 
 checkbox : Bool -> Element msg
 checkbox checked =
-    E.with .primaryColor
+    E.with (.primary << .color)
         (checkbox_
             [ E.htmlAttribute (Attr.class "focusable") ]
             checked

@@ -46,8 +46,8 @@ import Style.Color as Color
 import Style.Size as Size
 import UI exposing (Attributes, Element)
 import UI.Field as Field
-import Util.Bool as BoolUtil
 import Util.Fn exposing (flip)
+import Util.Bool as BoolUtil
 import Util.Maybe as MaybeUtil
 import Util.String as StringUtil
 
@@ -235,7 +235,7 @@ checkbox attrs config (Model f) =
         (UI.id id
             :: (attrs |> List.map (E.mapAttribute never))
         )
-        { onChange = flip (setBool config.key) (Model f)
+        { onChange = \b -> setBool config.key b (Model f)
         , checked = getBool config.key (Model f)
         , icon = config.icon
         , label = config.label
@@ -340,7 +340,7 @@ underlined (Model f_) attrs config =
             )
             config.description
             (config.kind |> Field.isValid valid)
-            (flip (set config.key) (Model f))
+            (\val -> set config.key val (Model f))
             (value_ |> Maybe.withDefault "")
 
     else
@@ -351,7 +351,7 @@ underlined (Model f_) attrs config =
                 ]
                 config.description
                 (config.kind |> Field.isValid valid)
-                (flip (set config.key) (Model f))
+                (\val -> set config.key val (Model f))
                 (value_ |> Maybe.withDefault "")
             , errors id [] parsed
             ]

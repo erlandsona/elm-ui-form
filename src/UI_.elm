@@ -1,4 +1,4 @@
-module UI_ exposing (Attribute, Attributes, Defaults, Element)
+module UI_ exposing (Attribute, Attributes, Defaults, Element, Option)
 
 {-|
 
@@ -9,7 +9,25 @@ module UI_ exposing (Attribute, Attributes, Defaults, Element)
 -}
 
 import Element.WithContext as E
+import Element.WithContext.Input as Input
 import Time
+
+
+{-| Make your own
+
+    type alias Context =
+        UI_.Defaults
+            { colors :
+                { primary : Color
+                , secondary : Color
+                }
+            }
+
+-}
+type alias Defaults properties =
+    { properties
+        | tz : Time.Zone
+    }
 
 
 {-| Make your own
@@ -44,16 +62,9 @@ type alias Attributes ctx msg =
 
 {-| Make your own
 
-    type alias Context =
-        UI_.Defaults
-            { colors :
-                { primary : Color
-                , secondary : Color
-                }
-            }
+    type alias Option msg =
+        UI_.Option Context msg
 
 -}
-type alias Defaults properties =
-    { properties
-        | tz : Time.Zone
-    }
+type alias Option ctx value msg =
+    Input.Option (Defaults ctx) value msg
