@@ -3,6 +3,11 @@ module Gen.Lens exposing (..)
 import Accessors exposing (Relation, makeOneToOne)
 
 
+altEmails : Lens { record | altEmails : altEmails } altEmails sub wrap
+altEmails =
+    makeOneToOne ".altEmails" .altEmails (\f r -> { r | altEmails = f r.altEmails })
+
+
 changePassword : Lens { record | changePassword : changePassword } changePassword sub wrap
 changePassword =
     makeOneToOne

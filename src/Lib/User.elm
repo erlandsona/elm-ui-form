@@ -10,15 +10,21 @@ type alias User =
     { id : Int
     , name : String
     , email : Maybe Email
+    , altEmails : List Email
     }
 
 
 decoder : Decoder User
 decoder =
-    Decode.map3 User
+    Decode.map4 User
         (Decode.field "id" Decode.int)
         (Decode.field "name" Decode.string)
         (Decode.field "email" (Decode.nullable Email.decoder))
+        (Decode.field "alt_emails"
+            (Decode.list (Decode.maybe Email.decoder)
+                |> Decode.map (List.filterMap identity)
+            )
+        )
 
 
 encode : User -> Encode.Value

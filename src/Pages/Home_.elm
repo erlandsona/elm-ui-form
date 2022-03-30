@@ -16,6 +16,7 @@ import UI.Field as Field exposing (Description(..))
 import UI.Form as Form
 import UI.Time
 import Util.Email as Email
+import Util.List as ListUtil
 import Util.String as StringUtil
 import View exposing (View)
 
@@ -104,7 +105,7 @@ view time ({ form } as model) =
                         |> E.withAttribute (.gray << .color)
                     , Background.color (E.rgb255 245 245 245)
                     ]
-                    [ Form.field
+                    ((Form.field
                         { description = Label [] "Name"
                         , key = Lens.data << Lens.name
                         , parser = StringUtil.nonEmpty >> Result.fromMaybe "Name can't be empty."
@@ -112,27 +113,52 @@ view time ({ form } as model) =
                         |> Form.underlined form
                             [ E.width (E.shrink |> E.minimum 200)
                             ]
-                    , Form.field
-                        { description = Label [] "Email"
-                        , key = Lens.data << Lens.email
-                        , parser = Email.parse >> Result.map Just
-                        }
-                        |> Form.underlined form
-                            [ E.width (E.shrink |> E.minimum 200)
-                            ]
+                     )
+                        :: (Form.field
+                                { description = Label [] "Email"
+                                , key = Lens.data << Lens.email
+                                , parser = Email.parse >> Result.map Just
+                                }
+                                |> Form.underlined form
+                                    [ E.width (E.shrink |> E.minimum 200)
+                                    ]
+                           )
+                        :: Form.checkbox []
+                            { icon = Field.checkbox
+                            , label = Input.labelLeft [] (E.text "Change Password?")
+                            , key = Lens.changePassword
+                            }
+                            form
+                        :: (let
+                                altEmails =
+                                    Form.getList (Lens.data << Lens.altEmails) form
 
-                    -- , Form.field
-                    --     { description = Label [] "Change Password?"
-                    --     , key = Lens.changePassword
-                    --     , parser = Ok
-                    --     }
-                    --     |>
-                    , Form.checkbox []
-                        { icon = Field.checkbox
-                        , label = Input.labelLeft [] (E.text "Change Password?")
-                        , key = Lens.changePassword
-                        }
-                        form
-                    ]
+                                nextIdx : Int
+                                nextIdx =
+                                    negate 1 - List.length altEmails
+                            in
+                            Input.button []
+                                { label = E.text "Add Alternate Email"
+                                , onPress = Just (Form.set (Lens.data << Lens.altEmails << ListUtil.atIdx nextIdx) "" form)
+                                }
+                                :: List.concatMap
+                                    (\( idx, _ ) ->
+                                        [ Form.field
+                                            { description = Label [] ("Email " ++ String.fromInt idx)
+                                            , key = Lens.data << Lens.altEmails << ListUtil.atIdx idx
+                                            , parser = Email.parse
+                                            }
+                                            |> Form.underlined form
+                                                [ E.width (E.shrink |> E.minimum 200)
+                                                ]
+                                        , Input.button []
+                                            { label = E.text "Delete"
+                                            , onPress = Just (Form.remove (Lens.data << Lens.altEmails << ListUtil.atIdx idx) form)
+                                            }
+                                        ]
+                                    )
+                                    altEmails
+                           )
+                    )
             ]
     }
