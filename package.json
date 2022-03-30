@@ -1,0 +1,17 @@
+{
+  "name": "elm-ui-form",
+  "version": "1.0.0",
+  "description": "",
+  "main": "",
+  "devDependencies": {
+    "elm-review": "^2.7.1",
+    "elm-test": "^0.19.1-revision7"
+  },
+  "scripts": {
+    "gen": "elm-review --rules='NoMissingRecordFieldLens' --fix-all-without-prompt",
+    "dev:gen": "npm run gen -- --watch",
+    "test": "elm-test"
+  },
+  "author": "",
+  "license": "ISC"
+}
