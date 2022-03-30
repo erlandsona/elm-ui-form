@@ -24,6 +24,11 @@ floatErrors =
     makeOneToOne ".floatErrors" .floatErrors (\f r -> { r | floatErrors = f r.floatErrors })
 
 
+time : Lens { record | time : time } time sub wrap
+time =
+    makeOneToOne ".time" .time (\f r -> { r | time = f r.time })
+
+
 showErrors : Lens { record | showErrors : showErrors } showErrors sub wrap
 showErrors =
     makeOneToOne ".showErrors" .showErrors (\f r -> { r | showErrors = f r.showErrors })
