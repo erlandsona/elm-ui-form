@@ -9,6 +9,7 @@ import Gen.Pages as Pages
 import Gen.Route as Route
 import Request
 import Shared
+import Style.Color as Color
 import Time
 import UI exposing (Context)
 import Url exposing (Url)
@@ -135,8 +136,9 @@ view ({ shared } as model) =
         ctx =
             { tz = shared.tz
             , color =
-                { primary = E.rgb 79 157 249
-                , secondary = E.rgb 37 107 107
+                { primary = E.rgb255 79 157 249
+                , secondary = E.rgb255 37 107 107
+                , gray = Color.toUI Color.grayValue3
                 }
             }
     in

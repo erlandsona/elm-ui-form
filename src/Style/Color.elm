@@ -50,7 +50,6 @@ module Style.Color exposing
     , toneForContrast
     , toneForContrast_
     , value
-    , verityBlack
     , white
     , whiteValue
     , yellow
@@ -701,11 +700,6 @@ toName sc =
 yellow : Color
 yellow =
     Value Yellow
-
-
-verityBlack : Value
-verityBlack =
-    Theme { red = 16, green = 24, blue = 32 }
 
 
 black : Color

@@ -6,15 +6,15 @@ module UI exposing
     , Option
     , area
     , fontSize
-    , length
     , id
+    , length
     , px
     , transparent
     )
 
-import Html.Attributes as A
 import Element.WithContext as E exposing (Length)
 import Element.WithContext.Font as Font
+import Html.Attributes as A
 import Style.Size as Size exposing (Size)
 import UI_
 
@@ -24,6 +24,7 @@ type alias Context =
         { color :
             { primary : E.Color
             , secondary : E.Color
+            , gray : E.Color
             }
         }
 
