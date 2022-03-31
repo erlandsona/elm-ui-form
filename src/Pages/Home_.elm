@@ -88,7 +88,6 @@ view time ({ form } as model) =
             , E.map FormMsg <|
                 E.column
                     [ E.width (E.px 750)
-                    , E.height (E.px 750)
                     , E.padding 15
                     , E.spacing 10
                     , Border.solid
