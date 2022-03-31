@@ -90,6 +90,7 @@ view time ({ form } as model) =
                     [ E.width (E.px 750)
                     , E.height (E.px 750)
                     , E.padding 15
+                    , E.spacing 10
                     , Border.solid
                     , Border.width 1
                     , Border.rounded 5
@@ -105,24 +106,24 @@ view time ({ form } as model) =
                         |> E.withAttribute (.gray << .color)
                     , Background.color (E.rgb255 245 245 245)
                     ]
-                    ((Form.field
-                        { description = Label [] "Name"
-                        , key = Lens.data << Lens.name
-                        , parser = StringUtil.nonEmpty >> Result.fromMaybe "Name can't be empty."
-                        }
-                        |> Form.underlined form
-                            [ E.width (E.shrink |> E.minimum 200)
-                            ]
-                     )
-                        :: (Form.field
-                                { description = Label [] "Email"
-                                , key = Lens.data << Lens.email
-                                , parser = Email.parse >> Result.map Just
-                                }
-                                |> Form.underlined form
-                                    [ E.width (E.shrink |> E.minimum 200)
-                                    ]
-                           )
+                    (E.row [ E.width E.fill, E.spacing 10 ]
+                        [ Form.field
+                            { description = Label [] "Name"
+                            , key = Lens.data << Lens.name
+                            , parser = StringUtil.nonEmpty >> Result.fromMaybe "Name can't be empty."
+                            }
+                            |> Form.underlined form
+                                [ E.width (E.shrink |> E.minimum 200)
+                                ]
+                        , Form.field
+                            { description = Label [] "Email"
+                            , key = Lens.data << Lens.email
+                            , parser = Email.parse >> Result.map Just
+                            }
+                            |> Form.underlined form
+                                [ E.width (E.shrink |> E.minimum 200)
+                                ]
+                        ]
                         :: Form.checkbox []
                             { icon = Field.checkbox
                             , label = Input.labelLeft [] (E.text "Change Password?")
@@ -141,21 +142,22 @@ view time ({ form } as model) =
                                 { label = E.text "Add Alternate Email"
                                 , onPress = Just (Form.set (Lens.data << Lens.altEmails << ListUtil.atIdx nextIdx) "" form)
                                 }
-                                :: List.concatMap
+                                :: List.map
                                     (\( idx, _ ) ->
-                                        [ Form.field
-                                            { description = Label [] ("Email " ++ String.fromInt idx)
-                                            , key = Lens.data << Lens.altEmails << ListUtil.atIdx idx
-                                            , parser = Email.parse
-                                            }
-                                            |> Form.underlined form
-                                                [ E.width (E.shrink |> E.minimum 200)
-                                                ]
-                                        , Input.button []
-                                            { label = E.text "Delete"
-                                            , onPress = Just (Form.remove (Lens.data << Lens.altEmails << ListUtil.atIdx idx) form)
-                                            }
-                                        ]
+                                        E.row [ E.spacing 10 ]
+                                            [ Form.field
+                                                { description = Label [] ("Email " ++ String.fromInt idx)
+                                                , key = Lens.data << Lens.altEmails << ListUtil.atIdx idx
+                                                , parser = Email.parse
+                                                }
+                                                |> Form.underlined form
+                                                    [ E.width (E.shrink |> E.minimum 200)
+                                                    ]
+                                            , Input.button []
+                                                { label = E.text "Delete"
+                                                , onPress = Just (Form.remove (Lens.data << Lens.altEmails << ListUtil.atIdx idx) form)
+                                                }
+                                            ]
                                     )
                                     altEmails
                            )
