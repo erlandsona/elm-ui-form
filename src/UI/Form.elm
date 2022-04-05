@@ -147,67 +147,83 @@ formL =
     c_Model << Lens.form
 
 
-
--- lens : Prop value field wrap -> Prop (Model value) (Maybe field) wrap
--- lens l = formL << l
-
-
-str : Prop value String wrap -> Prop (Model value) String String
 str lens =
-    -- TODO: Prolly should use the same name from the given lens :grimacing:
-    A.makeOneToOne (name lens)
-        (get (formL << A.dictEntry (name lens))
-            >> Maybe.withDefault ""
-        )
-        (\fn ->
-            over (formL << A.dictEntry (name lens))
-                (Maybe.withDefault "" >> fn >> Just)
-        )
+    formL << A.dictEntry (name lens)
 
 
-
--- int_ : Prop value Int wrap
-
-
-int : Prop value Int wrap -> Prop (Model value) Int Int
 int lens =
-    -- TODO: Prolly should use the same name from the given lens :grimacing:
     A.makeOneToOne (name lens)
         (get (formL << A.dictEntry (name lens))
             >> Maybe.andThen String.toInt
-            >> Maybe.withDefault nan
         )
         (\fn ->
             over (formL << A.dictEntry (name lens))
                 (Maybe.andThen String.toInt
-                    >> Maybe.withDefault nan
                     >> fn
-                    >> String.fromInt
-                    >> Just
+                    >> Maybe.map String.fromInt
                 )
         )
 
 
-bool : Prop value Bool wrap -> Prop (Model value) Bool Bool
 bool lens =
-    -- TODO: Prolly should use the same name from the given lens :grimacing:
     A.makeOneToOne (name lens)
         (get (formL << A.dictEntry (name lens))
             >> Maybe.andThen BoolUtil.fromString
-            >> Maybe.withDefault False
         )
         (\fn ->
             over (formL << A.dictEntry (name lens))
                 (Maybe.andThen BoolUtil.fromString
-                    >> Maybe.withDefault False
                     >> fn
-                    >> BoolUtil.toString
-                    >> Just
+                    >> Maybe.map BoolUtil.toString
                 )
         )
 
 
 
+-- START HERE:
+-- dict lens =
+--     A.makeOneToOne (name lens)
+--         (get formL
+--             >> Dict.filter
+--                 (\k _ ->
+--                     String.contains (name lens) k
+--                  -- |> String.dropLeft (String.length (name lens))
+--                  -- |> String.split "["
+--                  -- |> List.filterMap
+--                  --     (String.split "]"
+--                  --         >> List.filterMap String.toInt
+--                  --         >> List.head
+--                  --     )
+--                  -- |> List.head
+--                  -- |>
+--                  -- -- |> Maybe.map (flip Tuple.pair val)
+--                 )
+--         )
+--         (\fn ->
+--             over formL
+--                 (Dict.map (\k v -> )))
+-- list =
+--     A.makeOneToOne
+--         (get formL
+--             >> Dict.toList
+--             >> List.filterMap
+--                 (\( k, val ) ->
+--                     k
+--                         |> String.dropLeft (String.length (name lens))
+--                         |> String.split "["
+--                         |> List.filterMap
+--                             (String.split "]"
+--                                 >> List.filterMap String.toInt
+--                                 >> List.head
+--                             )
+--                         |> List.head
+--                         |> Maybe.map (flip Tuple.pair val)
+--                 )
+--         )
+--         (\fn -> identity
+--          -- over formL
+--          --     (lens << ListUtil.atIdx i)
+--         )
 -- {-| Factor over Rank1 Type after listStr etc... are defined.
 -- -}
 -- listInt : Prop value field wrap -> Prop (Model value) (List field) (List field)

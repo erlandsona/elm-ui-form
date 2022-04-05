@@ -64,7 +64,7 @@ update msg =
     case msg of
         GotData ->
             over Lens.form
-                (set (Form.int (Lens.data << Lens.id)) 1
+                (set (Form.int (Lens.data << Lens.id)) (Just 1)
                  -- >> set (Form.list Form.str (Lens.data << Lens.altEmails)) [ "bob@gmail.com" ]
                 )
                 >> none
@@ -96,7 +96,7 @@ view time ({ form } as model) =
                 [ E.text "Hello, world! It's "
                 , UI.Time.view time
                 , E.text "FOR USER_ID:"
-                , E.text (String.fromInt (get (Form.int (Lens.data << Lens.id)) form))
+                , E.text (get (Form.str (Lens.data << Lens.id)) form |> Maybe.withDefault "???")
                 ]
             , E.map FormMsg <|
                 E.column
