@@ -1,11 +1,16 @@
 module Gen.Lens exposing (..)
 
-import Accessors exposing (Relation, makeOneToOne)
+import Accessors exposing (Lens, Relation, makeOneToOne)
 
 
 altEmails : Lens { record | altEmails : altEmails } altEmails sub wrap
 altEmails =
     makeOneToOne ".altEmails" .altEmails (\f r -> { r | altEmails = f r.altEmails })
+
+
+id : Lens { record | id : id } id sub wrap
+id =
+    makeOneToOne ".id" .id (\f r -> { r | id = f r.id })
 
 
 changePassword : Lens { record | changePassword : changePassword } changePassword sub wrap
@@ -24,22 +29,6 @@ data =
 email : Lens { record | email : email } email sub wrap
 email =
     makeOneToOne ".email" .email (\f r -> { r | email = f r.email })
-
-
-type alias Lens super sub reachable wrap =
-    Relation sub reachable wrap
-    -> Relation super reachable wrap
-
-
-type alias Property super sub =
-    -- Relation sub sub sub
-    -- -> Relation super sub sub
-    Lens super sub sub sub
-
-
-type alias Prism super ctor sub wrap =
-    Relation super sub wrap
-    -> Relation ctor sub (Maybe wrap)
 
 
 floatErrors : Lens { record | floatErrors : floatErrors } floatErrors sub wrap

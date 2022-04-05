@@ -47,6 +47,7 @@ import Style.Size as Size
 import UI exposing (Attributes, Element)
 import UI.Field as Field
 import Util.Bool as BoolUtil
+import Util.Dict as DictUtil
 import Util.Fn exposing (flip)
 import Util.Maybe as MaybeUtil
 import Util.String as StringUtil
@@ -92,11 +93,12 @@ input "some-page" TextField.underlined
 -}
 init :
     { idPrefix : String
-    , prefillData : List ( Key value, String )
+
+    -- , prefillData : List ( Key value, String )
     }
     -> Model value
-init { idPrefix, prefillData } =
-    Model <| Internal (Dict.fromList (prefillData |> List.map (Tuple.mapFirst unKey))) idPrefix False
+init { idPrefix } =
+    Model <| Internal Dict.empty idPrefix False
 
 
 type Key value
@@ -127,9 +129,44 @@ key l =
     Key (name l)
 
 
-int : Prop value field wrap -> Int -> ( Key value, String )
-int l i =
-    ( key l, String.fromInt i )
+{-| Using because this case "Can't" happen and if it does it's a bug in this library.
+-}
+nan : Int
+nan =
+    round ((1 / 0) / (1 / 0))
+
+
+int : Prop value Int wrap -> Prop (Model value) Int Int
+int lens =
+    A.makeOneToOne (name lens)
+        (\(Model { form }) ->
+            Dict.get (name lens) form
+                |> Maybe.andThen String.toInt
+                |> Maybe.withDefault nan
+        )
+        (upsert lens)
+
+
+upsert : Prop value Int wrap -> (Int -> Int) -> Model value -> Model value
+upsert lens fn (Model ({ form } as i)) =
+    Model
+        { i
+            | form =
+                Dict.update (name lens)
+                    (Maybe.andThen String.toInt
+                        >> Maybe.withDefault nan
+                        >> fn
+                        >> String.fromInt
+                        >> Just
+                    )
+                    form
+        }
+
+
+
+-- int : Prop value field wrap -> Int -> ( Key value, String )
+-- int l i =
+--     ( key l, String.fromInt i )
 
 
 str : Prop value field wrap -> String -> ( Key value, String )

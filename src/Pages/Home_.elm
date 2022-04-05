@@ -1,6 +1,6 @@
 module Pages.Home_ exposing (Model, Msg, page)
 
-import Accessors exposing (set)
+import Accessors exposing (get, over, set)
 import Element.WithContext as E
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
@@ -9,8 +9,10 @@ import Gen.Lens as Lens
 import Gen.Params.Home_ exposing (Params)
 import Lib.User as User exposing (User)
 import Page
+import Process
 import Request
 import Shared
+import Task
 import Time
 import UI.Field as Field exposing (Description(..))
 import UI.Form as Form
@@ -25,9 +27,10 @@ page : Shared.Model -> Request.With Params -> Page.With Model Msg
 page shared _ =
     Page.element
         { init =
-            ( { form = Form.init { idPrefix = "user-form", prefillData = [] }
+            ( { form = Form.init { idPrefix = "user-form" }
               }
-            , Cmd.none
+            , Process.sleep 1000
+                |> Task.perform (always GotData)
             )
         , update = update
         , view = view shared.time
@@ -53,11 +56,16 @@ type alias Form =
 
 type Msg
     = FormMsg Form
+    | GotData
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg =
     case msg of
+        GotData ->
+            over Lens.form (set (Form.int (Lens.data << Lens.id)) 1)
+                >> none
+
         FormMsg f ->
             set Lens.form f >> none
 
@@ -81,9 +89,11 @@ view time ({ form } as model) =
             , E.padding 25
             , E.spacing 10
             ]
-            [ E.paragraph []
+            [ E.paragraph [ E.spacing 5 ]
                 [ E.text "Hello, world! It's "
                 , UI.Time.view time
+                , E.text "FOR USER_ID:"
+                , E.text (String.fromInt (get (Form.int (Lens.data << Lens.id)) form))
                 ]
             , E.map FormMsg <|
                 E.column

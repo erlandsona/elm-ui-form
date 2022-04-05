@@ -1,5 +1,5 @@
 module Accessors exposing
-    ( Relation
+    ( Relation, Lens, Prism
     , get, set, over, name
     , makeOneToOne, makeOneToN
     , onEach, try, dictEntry
@@ -18,7 +18,7 @@ structures without handling the packing and the unpacking.
 
 # Relation
 
-@docs Relation
+@docs Relation, Lens, Prism
 
 
 # Action functions
@@ -43,6 +43,16 @@ Accessors are built using these functions:
 -}
 
 import Dict exposing (Dict)
+
+
+type alias Lens super sub reachable wrap =
+    Relation sub reachable wrap
+    -> Relation super reachable wrap
+
+
+type alias Prism super ctor sub wrap =
+    Relation super sub wrap
+    -> Relation ctor sub (Maybe wrap)
 
 
 {-| A `Relation super sub wrap` is a type describing how to interact with a
