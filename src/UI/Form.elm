@@ -35,7 +35,7 @@ module UI.Form exposing
 
 -}
 
-import Accessors as A exposing (Lens, Prism, Relation, get, name, over, set)
+import Accessors as A exposing (Lens, Relation, get, name, over, set)
 import Dict exposing (Dict)
 import Element.WithContext as E
 import Element.WithContext.Events as Event
@@ -147,6 +147,7 @@ formL =
     c_Model << Lens.form
 
 
+str : Prop value field wrap -> Prop (Model value) (Maybe String) (Maybe String)
 str lens =
     formL << A.dictEntry (name lens)
 
@@ -179,29 +180,42 @@ bool lens =
         )
 
 
+dict lens =
+    let
+        g =
+            get formL
+                >> Dict.filter
+                    (\k _ ->
+                        String.contains (name lens) k
+                     -- |> String.dropLeft (String.length (name lens))
+                     -- |> String.split "["
+                     -- |> List.filterMap
+                     --     (String.split "]"
+                     --         >> List.filterMap String.toInt
+                     --         >> List.head
+                     --     )
+                     -- |> List.head
+                     -- |>
+                     -- -- |> Maybe.map (flip Tuple.pair val)
+                    )
+    in
+    A.makeOneToOne (name lens)
+        g
+        (\fn m ->
+            let
+                origin =
+                    get formL m
 
--- START HERE:
--- dict lens =
---     A.makeOneToOne (name lens)
---         (get formL
---             >> Dict.filter
---                 (\k _ ->
---                     String.contains (name lens) k
---                  -- |> String.dropLeft (String.length (name lens))
---                  -- |> String.split "["
---                  -- |> List.filterMap
---                  --     (String.split "]"
---                  --         >> List.filterMap String.toInt
---                  --         >> List.head
---                  --     )
---                  -- |> List.head
---                  -- |>
---                  -- -- |> Maybe.map (flip Tuple.pair val)
---                 )
---         )
---         (\fn ->
---             over formL
---                 (Dict.map (\k v -> )))
+                sub =
+                    g m |> fn
+            in
+            origin
+                |> Dict.union sub
+                |> flip (set formL) m
+        )
+
+
+
 -- list =
 --     A.makeOneToOne
 --         (get formL

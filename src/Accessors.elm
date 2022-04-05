@@ -1,8 +1,9 @@
 module Accessors exposing
-    ( Relation, Lens, Prism
+    ( Relation, Lens
     , get, set, over, name
     , makeOneToOne, makeOneToN
     , onEach, try, dictEntry
+    --, Prism
     )
 
 {-| Relations are interfaces to document the relation between two data
@@ -45,14 +46,23 @@ Accessors are built using these functions:
 import Dict exposing (Dict)
 
 
-type alias Lens super sub reachable wrap =
-    Relation sub reachable wrap
-    -> Relation super reachable wrap
+type alias Optic sup supPath supWrap sub subPath subWrap =
+    Relation sub subPath subWrap -> Relation sup supPath supWrap
 
 
-type alias Prism super sub wrap =
-    Relation (Maybe sub) sub wrap
-    -> Relation super sub wrap
+type alias Lens sup sub path wrap =
+    -- Relation sub path wrap
+    -- -> Relation super path wrap
+    Optic sup path wrap sub path wrap
+
+
+
+-- type alias Prism sup sub reachable wrap =
+--     -- Relation (Maybe sub) sub wrap
+--     -- -> Relation super sub wrap
+--     -- Relation super sub wrap
+--     -- -> Relation (Maybe super) sub (Maybe wrap)
+--     Optic sup (Maybe sub)
 
 
 {-| A `Relation super sub wrap` is a type describing how to interact with a
