@@ -50,9 +50,9 @@ type alias Lens super sub reachable wrap =
     -> Relation super reachable wrap
 
 
-type alias Prism super ctor sub wrap =
-    Relation super sub wrap
-    -> Relation ctor sub (Maybe wrap)
+type alias Prism super sub wrap =
+    Relation (Maybe sub) sub wrap
+    -> Relation super sub wrap
 
 
 {-| A `Relation super sub wrap` is a type describing how to interact with a

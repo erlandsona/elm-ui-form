@@ -1,13 +1,13 @@
 module UI.Form exposing
     ( Model, showErrors
     , init, bool, int, str
-    , get, get_, getBool, getBool_, getInt, getList
-    , set, setBool, setInt
     , remove
     , Prop
-    , Key, key
     , checkbox, underlined
     , Config, field, kind, parser, floatError
+    -- , Key, key
+    -- , get, get_, getBool, getBool_, getInt, getList
+    -- , set, setBool, setInt
     )
 
 {-| Form Builder
@@ -35,7 +35,7 @@ module UI.Form exposing
 
 -}
 
-import Accessors as A exposing (Relation, name, over)
+import Accessors as A exposing (Lens, Prism, Relation, get, name, over, set)
 import Dict exposing (Dict)
 import Element.WithContext as E
 import Element.WithContext.Events as Event
@@ -47,8 +47,8 @@ import Style.Size as Size
 import UI exposing (Attributes, Element)
 import UI.Field as Field
 import Util.Bool as BoolUtil
-import Util.Dict as DictUtil
 import Util.Fn exposing (flip)
+import Util.List as ListUtil
 import Util.Maybe as MaybeUtil
 import Util.String as StringUtil
 
@@ -73,6 +73,15 @@ type alias Internal =
     }
 
 
+c_Model : Relation Internal reachable wrap -> Relation (Model value) reachable wrap
+c_Model =
+    let
+        g (Model i) =
+            i
+    in
+    A.makeOneToOne "_Model" g (\fn -> g >> fn >> Model)
+
+
 {-| Form.init Dict.empty
 
 type Msg
@@ -93,21 +102,14 @@ input "some-page" TextField.underlined
 -}
 init :
     { idPrefix : String
-
-    -- , prefillData : List ( Key value, String )
     }
     -> Model value
 init { idPrefix } =
-    Model <| Internal Dict.empty idPrefix False
-
-
-type Key value
-    = Key String
-
-
-unKey : Key value -> String
-unKey (Key s) =
-    s
+    Model
+        { form = Dict.empty
+        , idPrefix = idPrefix
+        , showErrors = False
+        }
 
 
 {-| Prop short for Property is a shorthand used mostly as a convenience in the defintion
@@ -124,124 +126,169 @@ type alias Prop value field wrap =
     -> Relation value field wrap
 
 
-key : Prop value field wrap -> Key value
-key l =
-    Key (name l)
+
+-- {-| Using because this case "Can't" happen and if it does it's a bug in this library.
+-- -}
 
 
-{-| Using because this case "Can't" happen and if it does it's a bug in this library.
--}
 nan : Int
 nan =
     round ((1 / 0) / (1 / 0))
 
 
+
+-- type alias Traversal value reachable wrap =
+--     Relation (Dict String String) reachable wrap
+--     -> Relation (Model value) reachable wrap
+
+
+formL : Lens (Model value) (Dict String String) reachable wrap
+formL =
+    c_Model << Lens.form
+
+
+
+-- lens : Prop value field wrap -> Prop (Model value) (Maybe field) wrap
+-- lens l = formL << l
+
+
+str : Prop value String wrap -> Prop (Model value) String String
+str lens =
+    -- TODO: Prolly should use the same name from the given lens :grimacing:
+    A.makeOneToOne (name lens)
+        (get (formL << A.dictEntry (name lens))
+            >> Maybe.withDefault ""
+        )
+        (\fn ->
+            over (formL << A.dictEntry (name lens))
+                (Maybe.withDefault "" >> fn >> Just)
+        )
+
+
+
+-- int_ : Prop value Int wrap
+
+
 int : Prop value Int wrap -> Prop (Model value) Int Int
 int lens =
+    -- TODO: Prolly should use the same name from the given lens :grimacing:
     A.makeOneToOne (name lens)
-        (\(Model { form }) ->
-            Dict.get (name lens) form
-                |> Maybe.andThen String.toInt
-                |> Maybe.withDefault nan
+        (get (formL << A.dictEntry (name lens))
+            >> Maybe.andThen String.toInt
+            >> Maybe.withDefault nan
         )
-        (upsert lens)
+        (\fn ->
+            over (formL << A.dictEntry (name lens))
+                (Maybe.andThen String.toInt
+                    >> Maybe.withDefault nan
+                    >> fn
+                    >> String.fromInt
+                    >> Just
+                )
+        )
 
 
-upsert : Prop value Int wrap -> (Int -> Int) -> Model value -> Model value
-upsert lens fn (Model ({ form } as i)) =
-    Model
-        { i
-            | form =
-                Dict.update (name lens)
-                    (Maybe.andThen String.toInt
-                        >> Maybe.withDefault nan
-                        >> fn
-                        >> String.fromInt
-                        >> Just
-                    )
-                    form
-        }
+bool : Prop value Bool wrap -> Prop (Model value) Bool Bool
+bool lens =
+    -- TODO: Prolly should use the same name from the given lens :grimacing:
+    A.makeOneToOne (name lens)
+        (get (formL << A.dictEntry (name lens))
+            >> Maybe.andThen BoolUtil.fromString
+            >> Maybe.withDefault False
+        )
+        (\fn ->
+            over (formL << A.dictEntry (name lens))
+                (Maybe.andThen BoolUtil.fromString
+                    >> Maybe.withDefault False
+                    >> fn
+                    >> BoolUtil.toString
+                    >> Just
+                )
+        )
 
 
 
+-- {-| Factor over Rank1 Type after listStr etc... are defined.
+-- -}
+-- listInt : Prop value field wrap -> Prop (Model value) (List field) (List field)
+-- listInt lens =
+--     A.makeOneToOne
+--         (get formL
+--             >> Dict.toList
+--             >> List.filterMap
+--                 (\( k, val ) ->
+--                     k
+--                         |> String.dropLeft (String.length (name lens))
+--                         |> String.split "["
+--                         |> List.filterMap
+--                             (String.split "]"
+--                                 >> List.filterMap String.toInt
+--                                 >> List.head
+--                             )
+--                         |> List.head
+--                         |> Maybe.map (flip Tuple.pair val)
+--                 )
+--         )
+--         (\fn ->
+--             over formL
+--                 (lens << ListUtil.atIdx i)
+--         )
 -- int : Prop value field wrap -> Int -> ( Key value, String )
 -- int l i =
 --     ( key l, String.fromInt i )
-
-
-str : Prop value field wrap -> String -> ( Key value, String )
-str l s =
-    ( key l, s )
-
-
-bool : Prop value field wrap -> Bool -> ( Key value, String )
-bool l b =
-    ( key l, BoolUtil.toString b )
-
-
-{-| Cleanest type but ignores whether or not the field exists.
--}
-get : Prop value field wrap -> Model value -> String
-get lens =
-    get_ lens >> Maybe.withDefault ""
-
-
-{-| Use this if you need to know if the field has been set previously
--}
-get_ : Prop value field wrap -> Model value -> Maybe String
-get_ lens (Model { form }) =
-    Dict.get (name lens) form
-
-
-getInt : Prop value field wrap -> Model value -> Maybe Int
-getInt lens =
-    get_ lens >> Maybe.andThen String.toInt
-
-
-{-| Cleanest type but ignores whether or not the field exists.
--}
-getBool : Prop value field wrap -> Model value -> Bool
-getBool lens =
-    getBool_ lens >> Maybe.withDefault False
-
-
-{-| Use this if you need to know if the field has been set previously
--}
-getBool_ : Prop value field wrap -> Model value -> Maybe Bool
-getBool_ lens =
-    get_ lens >> Maybe.andThen BoolUtil.fromString
-
-
-{-| Form.all Lens.listProp form --> [(name (Lens.listProp << ListUtil.atIdx 0)), "value")]
--}
-getList : Prop value field wrap -> Model value -> List ( Int, String )
-getList lens (Model { form }) =
-    form
-        |> Dict.toList
-        |> List.filterMap
-            (\( k, val ) ->
-                k
-                    |> String.dropLeft (String.length (name lens))
-                    |> String.split "["
-                    |> List.filterMap (String.split "]" >> List.filterMap String.toInt >> List.head)
-                    |> List.head
-                    |> Maybe.map (flip Tuple.pair val)
-            )
-
-
-set : Prop value field wrap -> String -> Model value -> Model value
-set lens value (Model i) =
-    Model (over Lens.form (Dict.insert (name lens) value) i)
-
-
-setBool : Prop value field wrap -> Bool -> Model value -> Model value
-setBool lens b =
-    set lens (BoolUtil.toString b)
-
-
-setInt : Prop value field wrap -> Int -> Model value -> Model value
-setInt lens i =
-    set lens (String.fromInt i)
+-- str : Prop value field wrap -> String -> ( Key value, String )
+-- str l s =
+--     ( key l, s )
+-- bool : Prop value field wrap -> Bool -> ( Key value, String )
+-- bool l b =
+--     ( key l, BoolUtil.toString b )
+-- {-| Cleanest type but ignores whether or not the field exists.
+-- -}
+-- get : Prop value field wrap -> Model value -> String
+-- get lens =
+--     get_ lens >> Maybe.withDefault ""
+-- {-| Use this if you need to know if the field has been set previously
+-- -}
+-- get_ : Prop value field wrap -> Model value -> Maybe String
+-- get_ lens (Model { form }) =
+--     Dict.get (name lens) form
+-- getInt : Prop value field wrap -> Model value -> Maybe Int
+-- getInt lens =
+--     get_ lens >> Maybe.andThen String.toInt
+-- {-| Cleanest type but ignores whether or not the field exists.
+-- -}
+-- getBool : Prop value field wrap -> Model value -> Bool
+-- getBool lens =
+--     getBool_ lens >> Maybe.withDefault False
+-- {-| Use this if you need to know if the field has been set previously
+-- -}
+-- getBool_ : Prop value field wrap -> Model value -> Maybe Bool
+-- getBool_ lens =
+--     get_ lens >> Maybe.andThen BoolUtil.fromString
+-- {-| Form.all Lens.listProp form --> [(name (Lens.listProp << ListUtil.atIdx 0)), "value")]
+-- -}
+-- getList : Prop value field wrap -> Model value -> List ( Int, String )
+-- getList lens (Model { form }) =
+--     form
+--         |> Dict.toList
+--         |> List.filterMap
+--             (\( k, val ) ->
+--                 k
+--                     |> String.dropLeft (String.length (name lens))
+--                     |> String.split "["
+--                     |> List.filterMap (String.split "]" >> List.filterMap String.toInt >> List.head)
+--                     |> List.head
+--                     |> Maybe.map (flip Tuple.pair val)
+--             )
+-- set : Prop value field wrap -> String -> Model value -> Model value
+-- set lens value (Model i) =
+--     Model (over Lens.form (Dict.insert (name lens) value) i)
+-- setBool : Prop value field wrap -> Bool -> Model value -> Model value
+-- setBool lens b =
+--     set lens (BoolUtil.toString b)
+-- setInt : Prop value field wrap -> Int -> Model value -> Model value
+-- setInt lens i =
+--     set lens (String.fromInt i)
 
 
 remove : Prop value field wrap -> Model value -> Model value
@@ -281,8 +328,16 @@ checkbox attrs config (Model f) =
         (UI.id id
             :: (attrs |> List.map (E.mapAttribute never))
         )
-        { onChange = \b -> setBool config.key b (Model f)
-        , checked = getBool config.key (Model f)
+        { onChange =
+            \b ->
+                set (formL << A.dictEntry (name config.key))
+                    (BoolUtil.toString b |> Just)
+                    (Model f)
+        , checked =
+            get (formL << A.dictEntry (name config.key))
+                (Model f)
+                |> Maybe.andThen BoolUtil.fromString
+                |> Maybe.withDefault False
         , icon = config.icon
         , label = config.label
         }
@@ -386,7 +441,7 @@ underlined (Model f_) attrs config =
             )
             config.description
             (config.kind |> Field.isValid valid)
-            (\val -> set config.key val (Model f))
+            (\val -> set (formL << A.dictEntry (name config.key)) (Just val) (Model f))
             (value_ |> Maybe.withDefault "")
 
     else
@@ -397,7 +452,7 @@ underlined (Model f_) attrs config =
                 ]
                 config.description
                 (config.kind |> Field.isValid valid)
-                (\val -> set config.key val (Model f))
+                (\val -> set (formL << A.dictEntry (name config.key)) (Just val) (Model f))
                 (value_ |> Maybe.withDefault "")
             , errors id [] parsed
             ]
