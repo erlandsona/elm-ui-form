@@ -65,6 +65,7 @@ update msg =
         GotData ->
             over Lens.form
                 (set (Form.int (Lens.data << Lens.id)) (Just 1)
+                    >> set (Form.str (Lens.data << Lens.name)) (Just "Austin")
                  -- >> set (Form.list Form.str (Lens.data << Lens.altEmails)) [ "bob@gmail.com" ]
                 )
                 >> none

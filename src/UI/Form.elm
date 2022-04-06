@@ -63,6 +63,15 @@ type Model value
     = Model Internal
 
 
+c_Model : Lens (Model value) wrap Internal reachable
+c_Model =
+    let
+        g (Model i) =
+            i
+    in
+    A.makeOneToOne "_Model" g (\fn -> g >> fn >> Model)
+
+
 type alias Internal =
     { -- NOTE: use Result String String
       -- if parse errors need to be aggregated for display in a toast or something.
@@ -73,13 +82,9 @@ type alias Internal =
     }
 
 
-c_Model : Relation Internal reachable wrap -> Relation (Model value) reachable wrap
-c_Model =
-    let
-        g (Model i) =
-            i
-    in
-    A.makeOneToOne "_Model" g (\fn -> g >> fn >> Model)
+formL : Lens (Model value) wrap (Dict String String) reachable
+formL =
+    c_Model << Lens.form
 
 
 {-| Form.init Dict.empty
@@ -127,31 +132,21 @@ type alias Prop value field wrap =
 
 
 
--- {-| Using because this case "Can't" happen and if it does it's a bug in this library.
--- -}
-
-
-nan : Int
-nan =
-    round ((1 / 0) / (1 / 0))
-
-
-
 -- type alias Traversal value reachable wrap =
 --     Relation (Dict String String) reachable wrap
 --     -> Relation (Model value) reachable wrap
 
 
-formL : Lens (Model value) (Dict String String) reachable wrap
-formL =
-    c_Model << Lens.form
-
-
-str : Prop value field wrap -> Prop (Model value) (Maybe String) (Maybe String)
+str : Prop value field wrap -> Lens (Model value) wrap_ (Maybe String) path
 str lens =
     formL << A.dictEntry (name lens)
 
 
+int :
+    Prop value field wrap
+    -- -> Relation (Maybe Int) reachable a
+    -- -> Relation (Model value) reachable a
+    -> Lens (Model value) wrap_ (Maybe Int) path
 int lens =
     A.makeOneToOne (name lens)
         (get (formL << A.dictEntry (name lens))
@@ -166,6 +161,11 @@ int lens =
         )
 
 
+bool :
+    Prop value field wrap
+    -- Relation (Maybe Bool) reachable a
+    -- -> Relation (Model value) reachable a
+    -> Lens (Model value) wrap_ (Maybe Bool) path
 bool lens =
     A.makeOneToOne (name lens)
         (get (formL << A.dictEntry (name lens))
@@ -178,6 +178,11 @@ bool lens =
                     >> Maybe.map BoolUtil.toString
                 )
         )
+
+
+
+-- list : Prop (Model value) field wrap -> Prop value field wrap -> Prop (Model value) (List field) wrap
+-- list formL
 
 
 remove : Prop value field wrap -> Model value -> Model value

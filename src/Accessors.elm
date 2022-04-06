@@ -1,8 +1,8 @@
 module Accessors exposing
-    ( Relation, Lens
+    ( Relation, Lens, Lens_
     , get, set, over, name
     , makeOneToOne, makeOneToN
-    , onEach, try, dictEntry
+    , onEach, try, dictEntry, one, two
     --, Prism
     )
 
@@ -19,7 +19,7 @@ structures without handling the packing and the unpacking.
 
 # Relation
 
-@docs Relation, Lens, Prism
+@docs Relation, Lens, Lens_, Prism
 
 
 # Action functions
@@ -39,24 +39,24 @@ Accessors are built using these functions:
 
 # Common accessors
 
-@docs onEach, try, dictEntry
+@docs onEach, try, dictEntry, one, two
 
 -}
 
 import Dict exposing (Dict)
 
 
-type alias Optic sup supPath supWrap sub subPath subWrap =
-    Relation sub subPath subWrap -> Relation sup supPath supWrap
+type alias Lens s t a b =
+    Relation a b t
+    -> Relation s b t
 
 
-type alias Lens sup sub path wrap =
-    -- Relation sub path wrap
-    -- -> Relation super path wrap
-    Optic sup path wrap sub path wrap
+type alias Lens_ record field =
+    Lens record record field field
 
 
 
+-- Optic sup path wrap sub path wrap
 -- type alias Prism sup sub reachable wrap =
 --     -- Relation (Maybe sub) sub wrap
 --     -- -> Relation super sub wrap
@@ -297,3 +297,17 @@ In terms of accessors, think of Dicts as records where each field is a Maybe.
 dictEntry : comparable -> Relation (Maybe v) reachable wrap -> Relation (Dict comparable v) reachable wrap
 dictEntry key =
     makeOneToOne "{}" (Dict.get key) (Dict.update key)
+
+
+one : Lens ( a, x ) ( b, x ) a b
+one =
+    makeOneToOne "_1"
+        Tuple.first
+        Tuple.mapFirst
+
+
+two : Lens ( x, a ) ( x, b ) a b
+two =
+    makeOneToOne "_2"
+        Tuple.second
+        Tuple.mapSecond

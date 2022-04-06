@@ -24,9 +24,9 @@ accessors =
                 CodeGen.typed "Lens"
                     [ CodeGen.extRecordAnn "record"
                         [ ( fieldName, CodeGen.typeVar fieldName ) ]
+                    , CodeGen.typeVar "t"
                     , CodeGen.typeVar fieldName
-                    , CodeGen.typeVar "sub"
-                    , CodeGen.typeVar "wrap"
+                    , CodeGen.typeVar "b"
                     ]
                     |> Just
             , implementation =
