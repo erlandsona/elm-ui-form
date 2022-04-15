@@ -3,12 +3,22 @@ module Gen.Lens exposing (..)
 import Accessors exposing (Lens, Relation, makeOneToOne)
 
 
+age : Lens { record | age : age } t age b
+age =
+    makeOneToOne ".age" .age (\f r -> { r | age = f r.age })
+
+
 changePassword : Lens { record | changePassword : changePassword } t changePassword b
 changePassword =
     makeOneToOne
         ".changePassword"
         .changePassword
         (\f r -> { r | changePassword = f r.changePassword })
+
+
+region : Lens { record | region : region } t region b
+region =
+    makeOneToOne ".region" .region (\f r -> { r | region = f r.region })
 
 
 name : Lens { record | name : name } t name b

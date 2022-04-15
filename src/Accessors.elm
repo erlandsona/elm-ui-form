@@ -3,7 +3,10 @@ module Accessors exposing
     , get, set, over, name
     , makeOneToOne, makeOneToN
     , onEach, try, dictEntry, one, two
-    --, Prism
+    ,  Setter
+       --, Prism
+       -- , c_Just
+
     )
 
 {-| Relations are interfaces to document the relation between two data
@@ -62,6 +65,10 @@ type alias
         b
     =
     Relation a b t -> Relation s b t
+
+
+type alias Setter s a wrap =
+    Relation a a a -> Relation s a wrap
 
 
 type alias Lens_ record field =
@@ -289,6 +296,13 @@ try =
     makeOneToN "?" Maybe.map Maybe.map
 
 
+
+-- c_Just =
+--     makeOneToN "^?"
+--         Maybe.map
+--         (\fn m -> Maybe.map fn m)
+
+
 {-| This accessor combinator lets you access Dict members.
 
 In terms of accessors, think of Dicts as records where each field is a Maybe.
@@ -318,13 +332,9 @@ dictEntry key =
 
 one : Lens ( a, x ) ( b, x ) a b
 one =
-    makeOneToOne "_1"
-        Tuple.first
-        Tuple.mapFirst
+    makeOneToOne "_1" Tuple.first Tuple.mapFirst
 
 
 two : Lens ( x, a ) ( x, b ) a b
 two =
-    makeOneToOne "_2"
-        Tuple.second
-        Tuple.mapSecond
+    makeOneToOne "_2" Tuple.second Tuple.mapSecond
