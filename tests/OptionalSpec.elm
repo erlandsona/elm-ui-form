@@ -267,6 +267,18 @@ lens_get_set l s a =
 
 
 
+-- Identity:  \x -> iso.get(iso.reverseGet x) == x
+-- Reversed:  \x -> iso.reverseGet(iso.get x) == x
+-- iso_identity :
+--     -- Eq s =>
+--     Setter s a a -> s -> Bool
+-- iso_identity l s =
+--     (s |> A.over l (A.get l)) == s
+-- iso_yon :
+--     -- Eq a =>
+--     AnIso_ s a -> a -> Bool
+-- iso_yon l a =
+--     (a |> get (from l << cloneIso l)) == a
 -- traverse_pure :
 --     -- forall f s a. (Applicative f, Eq (f s)) =>
 --     LensLike_ f s a -> s -> Bool
