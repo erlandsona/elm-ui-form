@@ -8,6 +8,11 @@ age =
     makeOneToOne ".age" .age (\f r -> { r | age = f r.age })
 
 
+stuff : Lens { record | stuff : stuff } t stuff b
+stuff =
+    makeOneToOne ".stuff" .stuff (\f r -> { r | stuff = f r.stuff })
+
+
 changePassword : Lens { record | changePassword : changePassword } t changePassword b
 changePassword =
     makeOneToOne

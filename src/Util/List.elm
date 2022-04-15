@@ -1,6 +1,5 @@
 module Util.List exposing
-    ( atIdx
-    , find
+    ( find
     , getElem
     , getIdx
     , groupBy
@@ -20,33 +19,6 @@ module Util.List exposing
     , unique
     , uniqueBy
     )
-
-import Accessors exposing (Relation)
-
-
-atIdx :
-    Int
-    -> Relation elem value elem
-    -> Relation (List elem) value (List elem)
-atIdx idx =
-    let
-        name : String
-        name =
-            "[" ++ String.fromInt idx ++ "]"
-    in
-    Accessors.makeOneToN name (ixMap idx) (ixMap idx)
-
-
-ixMap : Int -> (a -> a) -> List a -> List a
-ixMap idx fn =
-    List.indexedMap
-        (\idx_ v ->
-            if idx_ == idx then
-                fn v
-
-            else
-                v
-        )
 
 
 nonEmpty : List a -> Maybe (List a)

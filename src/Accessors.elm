@@ -2,10 +2,19 @@ module Accessors exposing
     ( Relation, Lens, Lens_
     , get, set, over, name
     , makeOneToOne, makeOneToN
-    , onEach, try, dictEntry, one, two
+    , try, one, two
     ,  Setter
        --, Prism
        -- , c_Just
+      , array
+      , at
+      , at_
+        -- , cons
+      , id
+        -- , iso
+      , ix
+      , key
+      , list
 
     )
 
@@ -46,7 +55,9 @@ Accessors are built using these functions:
 
 -}
 
+import Array exposing (Array)
 import Dict exposing (Dict)
+import Util.List as ListUtil
 
 
 {-| Because this is baked on top of Relation... I'm not sold
@@ -113,11 +124,11 @@ the implementation for get, set and over).
 -}
 id : Relation a a a
 id =
-    Relation
-        { get = \a -> a
-        , over = \change -> \a -> change a
-        , name = ""
-        }
+    { get = \a -> a
+    , over = \change -> \a -> change a
+    , name = ""
+    }
+        |> Relation
 
 
 {-| The get function takes:
@@ -216,11 +227,11 @@ makeOneToOne :
     -> Relation sub reachable wrap
     -> Relation super reachable wrap
 makeOneToOne n getter mapper (Relation sub) =
-    Relation
-        { get = \super -> sub.get (getter super)
-        , over = \change super -> mapper (sub.over change) super
-        , name = n ++ sub.name
-        }
+    { get = \super -> sub.get (getter super)
+    , over = \change super -> mapper (sub.over change) super
+    , name = n ++ sub.name
+    }
+        |> Relation
 
 
 {-| This function lets you build an accessor for containers that have
@@ -243,13 +254,13 @@ makeOneToN :
     -> Relation sub reachable subWrap
     -> Relation super reachable superWrap
 makeOneToN n getter mapper (Relation sub) =
-    Relation
-        { get = \super -> getter sub.get super
-        , over = \change super -> mapper (sub.over change) super
+    { get = \super -> getter sub.get super
+    , over = \change super -> mapper (sub.over change) super
 
-        -- TODO: This needs to be improved for compositions...
-        , name = n ++ sub.name
-        }
+    -- TODO: This needs to be improved for compositions...
+    , name = n ++ sub.name
+    }
+        |> Relation
 
 
 {-| This accessor combinator lets you access values inside lists.
@@ -267,9 +278,14 @@ makeOneToN n getter mapper (Relation sub) =
     -- returns {foo = [{bar = 3}, {bar = 4}, {bar = 5}]}
 
 -}
-onEach : Relation super sub wrap -> Relation (List super) sub (List wrap)
-onEach =
-    makeOneToN "[∞]" List.map List.map
+list : Relation super sub wrap -> Relation (List super) sub (List wrap)
+list =
+    makeOneToN ":[]" List.map List.map
+
+
+array : Relation super sub wrap -> Relation (Array super) sub (Array wrap)
+array =
+    makeOneToN "[]" Array.map Array.map
 
 
 {-| This accessor combinator lets you access values inside Maybe.
@@ -291,12 +307,17 @@ onEach =
     -- returns {foo = Just {bar = 2}, qux = Nothing}
 
 -}
-try : Relation super sub wrap -> Relation (Maybe super) sub (Maybe wrap)
+try : Relation sub path wrap -> Relation (Maybe sub) path (Maybe wrap)
 try =
     makeOneToN "?" Maybe.map Maybe.map
 
 
 
+-- maybe : Relation (Maybe wrap) reachable a -> Relation (Maybe wrap) reachable a
+-- maybe =
+--     makeOneToOne "^?"
+--         (get try)
+--         (set try Just)
 -- c_Just =
 --     makeOneToN "^?"
 --         Maybe.map
@@ -325,9 +346,93 @@ In terms of accessors, think of Dicts as records where each field is a Maybe.
     -- returns dict
 
 -}
-dictEntry : comparable -> Relation (Maybe v) reachable wrap -> Relation (Dict comparable v) reachable wrap
-dictEntry key =
-    makeOneToOne "{}" (Dict.get key) (Dict.update key)
+key : comparable -> Relation (Maybe v) reachable wrap -> Relation (Dict comparable v) reachable wrap
+key k =
+    makeOneToOne "{}" (Dict.get k) (Dict.update k)
+
+
+at_ : Int -> (Relation v reachable wrap -> Relation (List v) reachable (Maybe wrap))
+at_ idx =
+    makeOneToOne ("[" ++ String.fromInt idx ++ "]?")
+        (ListUtil.getIdx idx)
+        (\fn ls ->
+            List.indexedMap
+                (\idx_ v ->
+                    if idx == idx_ then
+                        fn (Just v)
+
+                    else
+                        Just v
+                )
+                ls
+                |> List.filterMap identity
+        )
+        << try
+
+
+{-| This accessor combinator lets you access a List member at a given index.
+
+    list = ["foo", "bar", "baz"]
+
+    get (ix 0) list
+    -- returns "bar"
+
+    get (ix 3) list
+    -- returns Nothing
+
+    get () dict
+    -- returns Just 2
+
+    set (dictEntry "foo") Nothing dict
+    -- returns Dict.remove "foo" dict
+
+    set (dictEntry "baz" << try << bar) 3 dict
+    -- returns dict
+
+-}
+at :
+    Int
+    -> Relation elem value elem
+    -> Relation (List elem) value (List elem)
+at idx =
+    makeOneToN ("(" ++ String.fromInt idx ++ ")")
+        (atMap idx)
+        (atMap idx)
+
+
+atMap : Int -> (a -> a) -> List a -> List a
+atMap idx fn =
+    List.indexedMap
+        (\idx_ v ->
+            if idx_ == idx then
+                fn v
+
+            else
+                v
+        )
+
+
+ix :
+    Int
+    -> Relation elem value elem
+    -> Relation (Array elem) value (Array elem)
+ix idx =
+    makeOneToN
+        ("[" ++ String.fromInt idx ++ "]")
+        (ixMap_ idx)
+        (ixMap_ idx)
+
+
+ixMap_ : Int -> (a -> a) -> Array a -> Array a
+ixMap_ idx fn =
+    Array.indexedMap
+        (\idx_ v ->
+            if idx_ == idx then
+                fn v
+
+            else
+                v
+        )
 
 
 one : Lens ( a, x ) ( b, x ) a b
@@ -338,3 +443,10 @@ one =
 two : Lens ( x, a ) ( x, b ) a b
 two =
     makeOneToOne "_2" Tuple.second Tuple.mapSecond
+
+
+
+-- build l val =
+--     set l val {{- how do I invent a structure? -}}
+-- iso =
+--     makeOneToOne "~=" String.toList (\_ -> String.fromList)

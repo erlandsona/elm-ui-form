@@ -1,6 +1,6 @@
 module OptionalSpec exposing (..)
 
-import Accessors as A exposing (Relation, Setter)
+import Accessors as A exposing (Lens, Relation, Setter)
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, char, int, list, string, tuple)
 import Gen.Lens as Lens
@@ -175,186 +175,108 @@ type alias Bob =
     { name : String
     , age : Int
     , email : Maybe String
+    , stuff : List String
     }
 
 
 bobs : Fuzzer Bob
 bobs =
-    Fuzz.map3 Bob string int (Fuzz.maybe string)
+    Fuzz.map4 Bob string int (Fuzz.maybe string) (Fuzz.list string)
 
 
 isSetter : Setter s a wrap -> Fuzzer s -> Fuzzer (Fun a) -> Fuzzer a -> Test
 isSetter l fzr fnFzr val =
     describe ("isSetter: " ++ A.name l)
-        [ fuzz fzr "identity" (setter_id l)
+        [ fuzz fzr
+            "identity"
+            (Expect.true "setter"
+                << setter_id l
+            )
         , fuzz (Fuzz.tuple3 ( fzr, fnFzr, fnFzr ))
             "composition"
-            (\( s, f, g ) -> setter_composition l s f g)
+            (\( s, f, g ) ->
+                Expect.true "setter" <|
+                    setter_composition l s f g
+            )
         , fuzz (Fuzz.tuple3 ( fzr, val, val ))
             "set_set"
-            (\( s, a, b ) -> setter_set_set l s a b)
+            (\( s, a, b ) ->
+                Expect.true "setter" <|
+                    setter_set_set l s a b
+            )
+        ]
+
+
+isLens : Setter s a a -> Fuzzer s -> Fuzzer (Fun a) -> Fuzzer a -> Test
+isLens l fzr valFn val =
+    describe ("isLens: " ++ A.name l)
+        [ isSetter l fzr valFn val
+
+        -- There's Traversal laws in here somewhere but not sure they're expressible in Elm.
+        , fuzz fzr "lens_set_get" (lens_set_get l >> Expect.true "lens_set_get")
+        , fuzz (Fuzz.tuple ( fzr, val ))
+            "lens_get_set"
+            (\( b, s ) ->
+                lens_get_set l b s
+                    |> Expect.true "lens_get_set"
+            )
         ]
 
 
 is_try_a_setter : Test
 is_try_a_setter =
     describe "Setters"
-        [ isSetter Lens.name bobs strFun string
-        , isSetter Lens.age bobs intFun int
+        [ isLens Lens.name bobs strFun string
+        , isLens Lens.age bobs intFun int
         , isSetter (Lens.email << A.try) bobs strFun string
+        , isSetter (Lens.stuff << A.at 0) bobs strFun string
         ]
 
 
-setter_id : Setter super sub wrap -> super -> Expectation
+setter_id : Setter super sub wrap -> super -> Bool
 setter_id l s =
-    A.over l identity s |> eq s
+    A.over l identity s == s
 
 
 setter_composition :
     -- Eq s =>
-    Setter super sub wrap -> super -> Fun sub -> Fun sub -> Expectation
+    Setter super sub wrap -> super -> Fun sub -> Fun sub -> Bool
 setter_composition l s f g =
-    A.over l f (A.over l g s) |> eq (A.over l (f << g) s)
+    A.over l f (A.over l g s) == A.over l (f << g) s
 
 
 setter_set_set :
     -- Eq s =>
-    Setter super sub wrap -> super -> sub -> sub -> Expectation
+    Setter super sub wrap -> super -> sub -> sub -> Bool
 setter_set_set l s a b =
-    A.set l b (A.set l a s) |> eq (A.set l b s)
+    A.set l b (A.set l a s) == A.set l b s
 
 
-test_optional_property_identity_when_just : Test
-test_optional_property_identity_when_just =
-    let
-        opt =
-            addressRegionOptional
-
-        test a =
-            A.get opt a |> Maybe.map (\r -> A.set opt r a) |> eq (Just a)
-    in
-    fuzz addressesWithRegion "test_optional_property_identity_when_just: For some a: A, getOption a |> Maybe.map (r -> set r a)  == Just a" test
+lens_set_get :
+    -- Eq s =>
+    Setter super sub sub -> super -> Bool
+lens_set_get l s =
+    A.set l (A.get l s) s == s
 
 
-test_optional_property_identity_when_nothing : Test
-test_optional_property_identity_when_nothing =
-    let
-        opt =
-            addressRegionOptional
-
-        test a =
-            A.get opt a |> Maybe.map (\r -> A.set opt r a) |> eq Nothing
-    in
-    fuzz addressesWithoutRegion "test_optional_property_identity_when_nothing: For some a: A, getOption a |> Maybe.map (r -> set r a)  == Nothing" test
+lens_get_set :
+    -- Eq a =>
+    Setter super sub sub -> super -> sub -> Bool
+lens_get_set l s a =
+    A.get l (A.set l a s) == a
 
 
 
--- test_optional_property_reverse_identity : Test
--- test_optional_property_reverse_identity =
---     let
---         opt =
---             addressRegionOptional
---         test ( a, r ) =
---             A.set opt r a |> A.get opt |> eq (Just r)
---     in
---     fuzz (Fuzz.tuple ( addressesWithoutRegion, string )) "test_optional_property_reverse_identity: For all a: A, set a r |> getOption == Just a" test
--- test_optional_method_compose =
---     let
---         opt =
---             addressRegionOptional << string2IntOptional
---         computed ( a, i ) =
---             A.set opt i a
---         expected ( a, i ) =
---             { a | region = Just (String.fromInt i) }
---     in
---     fuzz (Fuzz.tuple ( addressesWithRegion, int )) "Optional.compose" (\s -> eq (computed s) (expected s))
--- test_optional_method_composeLens =
---     let
---         opt =
---             composeLens addressRegionOptional (fromIso string2CharListIso)
---         computed ( a, cl ) =
---             opt.set cl a
---         expected ( a, cl ) =
---             { a | region = Just (String.fromList cl) }
---     in
---     fuzz (Fuzz.tuple ( addressesWithRegion, list char )) "Optional.composeLens" (\s -> eq (computed s) (expected s))
--- test_lens_method_modifyOption_just =
---     let
---         f sn =
---             String.reverse sn
---         opt =
---             addressRegionOptional
---         computed a =
---             modifyOption opt f a
---         expected a =
---             opt.getOption a |> Maybe.map String.reverse |> Maybe.map (\b -> opt.set b a)
---         test s =
---             eq (computed s) (expected s)
---     in
---     fuzz addressesWithRegion "Optional.modifyOption for Just a" test
--- test_lens_method_modifyOption_nothing =
---     let
---         f sn =
---             String.reverse sn
---         opt =
---             addressRegionOptional
---         computed a =
---             modifyOption opt f a
---         expected a =
---             opt.getOption a |> Maybe.map String.reverse |> Maybe.map (\b -> opt.set b a)
---         test s =
---             eq (computed s) (expected s)
---     in
---     fuzz addressesWithoutRegion "Optional.modifyOption for Nothing" test
-
-
-test_lens_method_modify_just : Test
-test_lens_method_modify_just =
-    let
-        f sn =
-            String.reverse sn
-
-        opt =
-            addressRegionOptional
-
-        computed a =
-            A.over opt f a
-
-        expected a =
-            A.get opt a |> Maybe.map String.reverse |> Maybe.map (\b -> A.set opt b a) |> Maybe.withDefault a
-
-        test s =
-            eq (computed s) (expected s)
-    in
-    fuzz addressesWithRegion "test_lens_method_modify_just: Optional.modify for Just a" test
-
-
-
--- test_optional_method_zip =
---     let
---         address1 =
---             Address "test" Street Nothing "test" Nothing "test" US
---         address2 =
---             Address "test" Street Nothing "test" (Just "test") "test" US
---         opt =
---             zip addressRegionOptional addressRegionOptional
---         computed x =
---             opt.getOption (opt.set x ( address1, address2 ))
---         expected x =
---             Just x
---         test s =
---             eq (computed s) (expected s)
---     in
---     fuzz (Fuzz.tuple ( string, string )) "Optional.zip" test
--- test_optional_method_fromLens =
---     let
---         opt =
---             fromLens addressStreetNameLens
---         computed ( a, s ) =
---             opt.set s a
---         expected ( a, s ) =
---             { a | streetName = s }
---         test s =
---             eq (computed s) (expected s)
---     in
---     fuzz (Fuzz.tuple ( addressesWithRegion, string )) "Optional.fromLens" test
+-- traverse_pure :
+--     -- forall f s a. (Applicative f, Eq (f s)) =>
+--     LensLike_ f s a -> s -> Bool
+-- traverse_pure l s =
+--     l pure s == (pure s {- : f s -})
+-- traverse_pureMaybe : (Relation sub sub sub -> Relation super sub wrap) -> s -> Expectation
+-- traverse_pureMaybe l s =
+--     A.over l Just s == (Just s)
+-- traverse_pureList :
+--     -- Eq s =>
+--     (Relation a a a -> Relation s b t) -> s -> Expectation
+-- traverse_pureList l s =
+--     (l A.id).over List.singleton s == [ s ]
