@@ -93,7 +93,8 @@ view time ({ form } as model) =
             , E.padding 25
             , E.spacing 10
             ]
-            [ E.paragraph [ E.spacing 5 ]
+            [ E.link [] { url = "/test1", label = E.text "test" }
+            , E.paragraph [ E.spacing 5 ]
                 [ E.text "Hello, world! It's "
                 , UI.Time.view time
                 , E.text "FOR USER_ID:"

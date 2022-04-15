@@ -46,13 +46,30 @@ Accessors are built using these functions:
 import Dict exposing (Dict)
 
 
-type alias Lens s t a b =
-    Relation a b t
-    -> Relation s b t
+{-| Because this is baked on top of Relation... I'm not sold
+this is actually a proper "Lens" type signature becuase you can
+make Prism-y things with it.
+-}
+type alias
+    Lens
+        -- Structure Before action
+        s
+        -- Structure After action
+        t
+        -- Focus Before action
+        a
+        -- Focus After action
+        b
+    =
+    Relation a b t -> Relation s b t
 
 
 type alias Lens_ record field =
     Lens record record field field
+
+
+type alias Prism s t a b =
+    Lens s t (Maybe a) (Maybe b)
 
 
 

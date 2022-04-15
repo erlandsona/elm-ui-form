@@ -5,9 +5,11 @@
   "main": "",
   "devDependencies": {
     "elm-review": "^2.7.1",
+    "elm-spa": "^6.0.4",
     "elm-test": "^0.19.1-revision7"
   },
   "scripts": {
+    "start": "elm-spa server",
     "gen": "elm-review --rules='NoMissingRecordFieldLens' --fix-all-without-prompt",
     "dev:gen": "npm run gen -- --watch",
     "test": "elm-test"
