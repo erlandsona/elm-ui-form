@@ -159,15 +159,28 @@ intFun =
         ]
 
 
+maybeStrFun : Fuzzer (Fun (Maybe String))
+maybeStrFun =
+    Fuzz.oneOf
+        [ Fuzz.map
+            (\_ ->
+                Maybe.andThen String.toInt
+                    >> Maybe.map String.fromInt
+            )
+            (Fuzz.maybe string)
+        ]
+
+
 type alias Bob =
     { name : String
     , age : Int
+    , email : Maybe String
     }
 
 
 bobs : Fuzzer Bob
 bobs =
-    Fuzz.map2 Bob string int
+    Fuzz.map3 Bob string int (Fuzz.maybe string)
 
 
 isSetter : Setter s a wrap -> Fuzzer s -> Fuzzer (Fun a) -> Fuzzer a -> Test
@@ -188,6 +201,7 @@ is_try_a_setter =
     describe "Setters"
         [ isSetter Lens.name bobs strFun string
         , isSetter Lens.age bobs intFun int
+        , isSetter (Lens.email << A.try) bobs strFun string
         ]
 
 
