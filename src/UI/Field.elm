@@ -39,9 +39,8 @@ import Html.Attributes as Attr
 import Html.Events as HEv
 import Json.Decode as Decode
 import Keyboard.Event exposing (KeyboardEvent, considerKeyboardEvent)
-import Style.Color as Color
 import Style.Size as Size
-import UI exposing (Attributes, Element)
+import UI exposing (Attribute, Attributes, Context, Element)
 import UI.TLDR exposing (edges)
 import Util.Fn exposing (uncurry)
 import Util.Maybe as MaybeUtil
@@ -135,21 +134,23 @@ outlined :
 outlined overrides label ((Config c) as conf) =
     base
         (Border.rounded (UI.length Size.medium)
-            :: Border.color (borderColor c.valid Color.grayValue4)
+            :: borderColor c.valid (.light << .gray << .color)
             :: overrides
         )
         label
         conf
 
 
-borderColor : Bool -> Color.Value -> E.Color
+borderColor : Bool -> (Context -> E.Color) -> Attribute msg
 borderColor valid clr =
-    Color.toUI <|
-        if valid then
-            clr
+    Border.color
+        |> E.withAttribute
+            (if valid then
+                clr
 
-        else
-            Color.redValue
+             else
+                .red << .color
+            )
 
 
 underlined :
@@ -164,10 +165,10 @@ underlined overrides label ((Config c) as conf) =
         (Border.widthEach { edges | bottom = UI.length Size.xxsmall }
             :: Border.rounded 0
             :: Background.color UI.transparent
-            :: Border.color (borderColor c.valid Color.grayValue1)
+            :: borderColor c.valid (.dark << .gray << .color)
             :: E.focused
                 [ Border.color |> E.withDecoration (.primary << .color)
-                , Font.color (Color.toUI Color.blackValue)
+                , Font.color |> E.withDecoration (.black << .color)
                 ]
             :: E.width E.fill
             :: overrides
@@ -308,13 +309,15 @@ checkbox checked =
 checkbox_ : Attributes msg -> Bool -> E.Color -> Element msg
 checkbox_ overrides checked pc =
     checkbox__
-        (Background.color
-            (if checked then
-                pc
+        ((Background.color
+            |> E.withAttribute
+                (if checked then
+                    always pc
 
-             else
-                Color.toUI Color.whiteValue
-            )
+                 else
+                    .white << .color
+                )
+         )
             :: Border.rounded 3
             :: Border.color
                 (if checked then
@@ -357,20 +360,32 @@ checkbox__ overrides checked pc =
     E.el
         (E.width (E.px 14)
             :: E.height (E.px 14)
-            :: Font.color (Color.contrastingFontColor_ pc)
+            :: (Font.color |> E.withAttribute (contrastingFontColor pc))
             :: E.centerY
             :: Font.size 9
             :: Font.center
-            :: E.inFront (checkmark checked (Color.contrastingFontColor_ pc))
+            :: E.inFront (checkmark checked (contrastingFontColor pc))
             :: overrides
         )
         E.none
 
 
-checkmark : Bool -> E.Color -> Element msg
+contrastingFontColor : E.Color -> (Context -> E.Color)
+contrastingFontColor e =
+    E.toRgb e
+        |> (\{ alpha } ->
+                if alpha >= 0.5 then
+                    .black << .color
+
+                else
+                    .white << .color
+           )
+
+
+checkmark : Bool -> (Context -> E.Color) -> Element msg
 checkmark checked color =
     E.el
-        [ Border.color color
+        [ Border.color |> E.withAttribute color
         , E.height (E.px 6)
         , E.width (E.px 9)
         , E.rotate (degrees -45)
@@ -410,7 +425,7 @@ circle on =
                         (Border.rounded 100
                             :: E.centerY
                             :: E.centerX
-                            :: Background.color (Color.toUI Color.blackValue)
+                            :: (Background.color |> E.withAttribute (.black << .color))
                             :: UI.area (UI.px Size.medium)
                         )
                         E.none

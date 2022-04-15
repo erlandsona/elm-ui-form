@@ -9,7 +9,6 @@ import Gen.Pages as Pages
 import Gen.Route as Route
 import Request
 import Shared
-import Style.Color as Color
 import Time
 import UI exposing (Context)
 import Url exposing (Url)
@@ -138,7 +137,14 @@ view ({ shared } as model) =
             , color =
                 { primary = E.rgb255 79 157 249
                 , secondary = E.rgb255 37 107 107
-                , gray = Color.toUI Color.grayValue3
+                , white = E.rgb255 250 250 250
+                , gray =
+                    { light = E.rgb255 217 217 217
+                    , normal = E.rgb255 127 127 127
+                    , dark = E.rgb255 70 70 70
+                    }
+                , black = E.rgb255 17 17 17
+                , red = E.rgb255 217 17 17
                 }
             }
     in

@@ -117,7 +117,7 @@ view time ({ form } as model) =
                             , color = grey
                             }
                       )
-                        |> E.withAttribute (.gray << .color)
+                        |> E.withAttribute (.normal << .gray << .color)
                     , Background.color (E.rgb255 245 245 245)
                     ]
                     (E.row [ E.width E.fill, E.spacing 10 ]

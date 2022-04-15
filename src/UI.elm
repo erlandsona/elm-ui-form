@@ -24,7 +24,14 @@ type alias Context =
         { color :
             { primary : E.Color
             , secondary : E.Color
-            , gray : E.Color
+            , black : E.Color
+            , gray :
+                { light : E.Color
+                , normal : E.Color
+                , dark : E.Color
+                }
+            , white : E.Color
+            , red : E.Color
             }
         }
 

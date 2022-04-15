@@ -42,7 +42,6 @@ import Element.WithContext.Events as Event
 import Element.WithContext.Font as Font
 import Element.WithContext.Input as Input
 import Gen.Lens as Lens
-import Style.Color as Color
 import Style.Size as Size
 import UI exposing (Attributes, Element)
 import UI.Field as Field
@@ -370,7 +369,7 @@ errors id overrides parsed =
 errorRow : Attributes msg -> String -> Element msg
 errorRow overrides errorMsg =
     E.el
-        (Font.color (Color.toUI Color.redValue)
+        ((Font.color |> E.withAttribute (.red << .color))
             :: UI.fontSize Size.xsmall
             :: overrides
         )
