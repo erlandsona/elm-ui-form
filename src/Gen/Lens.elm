@@ -1,76 +1,76 @@
 module Gen.Lens exposing (..)
 
-import Accessors exposing (Lens, Relation, makeOneToOne)
+import Accessors exposing (Lens, makeOneToOne_)
 
 
-age : Lens { record | age : age } t age b
+age : Lens { record | age : attribute } transformed attribute built
 age =
-    makeOneToOne ".age" .age (\f r -> { r | age = f r.age })
+    makeOneToOne_ ".age" .age (\f r -> { r | age = f r.age })
 
 
-stuff : Lens { record | stuff : stuff } t stuff b
-stuff =
-    makeOneToOne ".stuff" .stuff (\f r -> { r | stuff = f r.stuff })
+id : Lens { record | id : attribute } transformed attribute built
+id =
+    makeOneToOne_ ".id" .id (\f r -> { r | id = f r.id })
 
 
-changePassword : Lens { record | changePassword : changePassword } t changePassword b
+data : Lens { record | data : attribute } transformed attribute built
+data =
+    makeOneToOne_ ".data" .data (\f r -> { r | data = f r.data })
+
+
+changePassword : Lens { record | changePassword : attribute } transformed attribute built
 changePassword =
-    makeOneToOne
+    makeOneToOne_
         ".changePassword"
         .changePassword
         (\f r -> { r | changePassword = f r.changePassword })
 
 
-region : Lens { record | region : region } t region b
-region =
-    makeOneToOne ".region" .region (\f r -> { r | region = f r.region })
-
-
-name : Lens { record | name : name } t name b
-name =
-    makeOneToOne ".name" .name (\f r -> { r | name = f r.name })
-
-
-id : Lens { record | id : id } t id b
-id =
-    makeOneToOne ".id" .id (\f r -> { r | id = f r.id })
-
-
-email : Lens { record | email : email } t email b
-email =
-    makeOneToOne ".email" .email (\f r -> { r | email = f r.email })
-
-
-data : Lens { record | data : data } t data b
-data =
-    makeOneToOne ".data" .data (\f r -> { r | data = f r.data })
-
-
-floatErrors : Lens { record | floatErrors : floatErrors } t floatErrors b
-floatErrors =
-    makeOneToOne ".floatErrors" .floatErrors (\f r -> { r | floatErrors = f r.floatErrors })
-
-
-time : Lens { record | time : time } t time b
+time : Lens { record | time : attribute } transformed attribute built
 time =
-    makeOneToOne ".time" .time (\f r -> { r | time = f r.time })
+    makeOneToOne_ ".time" .time (\f r -> { r | time = f r.time })
 
 
-showErrors : Lens { record | showErrors : showErrors } t showErrors b
+showErrors : Lens { record | showErrors : attribute } transformed attribute built
 showErrors =
-    makeOneToOne ".showErrors" .showErrors (\f r -> { r | showErrors = f r.showErrors })
+    makeOneToOne_ ".showErrors" .showErrors (\f r -> { r | showErrors = f r.showErrors })
 
 
-parser : Lens { record | parser : parser } t parser b
+parser : Lens { record | parser : attribute } transformed attribute built
 parser =
-    makeOneToOne ".parser" .parser (\f r -> { r | parser = f r.parser })
+    makeOneToOne_ ".parser" .parser (\f r -> { r | parser = f r.parser })
 
 
-kind : Lens { record | kind : kind } t kind b
+kind : Lens { record | kind : attribute } transformed attribute built
 kind =
-    makeOneToOne ".kind" .kind (\f r -> { r | kind = f r.kind })
+    makeOneToOne_ ".kind" .kind (\f r -> { r | kind = f r.kind })
 
 
-form : Lens { record | form : form } t form b
+form : Lens { record | form : attribute } transformed attribute built
 form =
-    makeOneToOne ".form" .form (\f r -> { r | form = f r.form })
+    makeOneToOne_ ".form" .form (\f r -> { r | form = f r.form })
+
+
+floatErrors : Lens { record | floatErrors : attribute } transformed attribute built
+floatErrors =
+    makeOneToOne_ ".floatErrors" .floatErrors (\f r -> { r | floatErrors = f r.floatErrors })
+
+
+stuff : Lens { record | stuff : attribute } transformed attribute built
+stuff =
+    makeOneToOne_ ".stuff" .stuff (\f r -> { r | stuff = f r.stuff })
+
+
+region : Lens { record | region : attribute } transformed attribute built
+region =
+    makeOneToOne_ ".region" .region (\f r -> { r | region = f r.region })
+
+
+name : Lens { record | name : attribute } transformed attribute built
+name =
+    makeOneToOne_ ".name" .name (\f r -> { r | name = f r.name })
+
+
+email : Lens { record | email : attribute } transformed attribute built
+email =
+    makeOneToOne_ ".email" .email (\f r -> { r | email = f r.email })

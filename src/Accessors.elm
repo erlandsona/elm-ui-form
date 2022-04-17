@@ -1,21 +1,16 @@
 module Accessors exposing
-    ( Relation, Lens, Lens_
+    ( Relation, Accessor, Lens, Lens_, Setable
     , get, set, over, name
+    , try
+    , key
+    , each, at, eachIdx
+    , every, ix
+    , one, two
     , makeOneToOne, makeOneToN
-    , try, one, two
-    ,  Setter
-       --, Prism
-       -- , c_Just
-      , array
-      , at
-      , at_
-        -- , cons
-      , id
-        -- , iso
-      , ix
-      , key
-      , list
-
+    , makeOneToOne_, makeOneToN_
+    --, def
+    --, Modifiable
+    --, Getable
     )
 
 {-| Relations are interfaces to document the relation between two data
@@ -31,7 +26,7 @@ structures without handling the packing and the unpacking.
 
 # Relation
 
-@docs Relation, Lens, Lens_, Prism
+@docs Relation, Accessor, Lens, Lens_, Getable, Setable, Modifiable
 
 
 # Action functions
@@ -42,62 +37,80 @@ specific action on data using that accessor.
 @docs get, set, over, name
 
 
-# Build accessors
+# Common accessors
+
+@docs try, def
+@docs key
+@docs each, at, eachIdx
+@docs every, ix
+@docs one, two
+
+
+# Build your own accessors
 
 Accessors are built using these functions:
 
 @docs makeOneToOne, makeOneToN
-
-
-# Common accessors
-
-@docs onEach, try, dictEntry, one, two
+@docs makeOneToOne_, makeOneToN_
 
 -}
 
 import Array exposing (Array)
 import Dict exposing (Dict)
-import Util.List as ListUtil
 
 
-{-| Because this is baked on top of Relation... I'm not sold
-this is actually a proper "Lens" type signature becuase you can
-make Prism-y things with it.
+{-| The most general version of this type that everything else specializes
+-}
+type alias Accessor dataBefore dataAfter attrBefore attrAfter reachable wrap =
+    Relation attrBefore wrap attrAfter
+    -> Relation dataBefore reachable dataAfter
+
+
+{-| This is an approximation of Van Laarhoven encoded Lenses which enable the
+the callers to use regular function composition to build more complex nested
+updates of more complicated types.
+
+But the original "Lens" type looked more like:
+
+    type alias Lens structure attribute =
+        { get : structure -> attribute
+        , set : structure -> attribute -> structure
+        }
+
+unfortunately these can't be composed without
+defining custom `composeLens`, `composeIso`, `composePrism`, style functions.
+
+whereas with this approach we're able to make use of Elm's built in `<<` operator
+to get/set/over deeply nested data.
+
 -}
 type alias
     Lens
-        -- Structure Before action
-        s
-        -- Structure After action
-        t
+        -- Before Action
+        structure
+        -- After Action
+        transformed
         -- Focus Before action
-        a
+        attribute
         -- Focus After action
-        b
+        built
     =
-    Relation a b t -> Relation s b t
+    Relation attribute built transformed
+    -> Relation structure built transformed
 
 
-type alias Setter s a wrap =
-    Relation a a a -> Relation s a wrap
-
-
-type alias Lens_ record field =
-    Lens record record field field
-
-
-type alias Prism s t a b =
-    Lens s t (Maybe a) (Maybe b)
+type alias Lens_ structure attribute =
+    Lens structure attribute attribute attribute
 
 
 
--- Optic sup path wrap sub path wrap
--- type alias Prism sup sub reachable wrap =
---     -- Relation (Maybe sub) sub wrap
---     -- -> Relation super sub wrap
---     -- Relation super sub wrap
---     -- -> Relation (Maybe super) sub (Maybe wrap)
---     Optic sup (Maybe sub)
+-- type alias Getable structure transformed attribute built reachable =
+--     Relation attribute built attribute
+--     -> Relation structure reachable transformed
+
+
+type alias Setable structure transformed attribute built =
+    Relation attribute attribute built -> Relation structure attribute transformed
 
 
 {-| A `Relation super sub wrap` is a type describing how to interact with a
@@ -119,18 +132,6 @@ type Relation super sub wrap
         }
 
 
-{-| id is a neutral `Relation`. It is used to end a braid of accessors (see
-the implementation for get, set and over).
--}
-id : Relation a a a
-id =
-    { get = \a -> a
-    , over = \change -> \a -> change a
-    , name = ""
-    }
-        |> Relation
-
-
 {-| The get function takes:
 
   - An accessor,
@@ -142,22 +143,32 @@ get (foo << bar) myRecord
 ```
 
 -}
-get : (Relation sub sub sub -> Relation super sub wrap) -> super -> wrap
+get :
+    (Relation attribute built attribute
+     -> Relation structure reachable transformed
+    )
+    -> structure
+    -> transformed
 get accessor s =
     let
         (Relation relation) =
-            accessor id
+            accessor (Relation { get = \super -> super, over = void, name = "" })
     in
     relation.get s
 
 
+void : a -> b
+void super =
+    void super
+
+
 {-| This function gives the name of the function as a string...
 -}
-name : (Relation sub sub sub -> Relation super sub wrap) -> String
+name : Accessor a b c d e f -> String
 name accessor =
     let
         (Relation relation) =
-            accessor id
+            accessor (Relation { get = void, over = void, name = "" })
     in
     relation.name
 
@@ -175,13 +186,27 @@ set (foo << bar) "Hi!" myRecord
 ```
 
 -}
-set : (Relation sub sub sub -> Relation super sub wrap) -> sub -> super -> super
+set :
+    (Relation attribute attribute built
+     -> Relation structure attribute transformed
+    )
+    -> attribute
+    -> structure
+    -> structure
 set accessor value s =
     let
         (Relation relation) =
-            accessor id
+            accessor (Relation { get = void, over = \fn -> fn, name = "" })
+
+        newSuper =
+            relation.over (\_ -> value) s
     in
-    relation.over (\_ -> value) s
+    newSuper
+
+
+
+-- type alias Modifiable =
+--    Relation attribute x y -> Relation structure a transformed
 
 
 {-| The over function takes:
@@ -198,14 +223,14 @@ over (foo << qux) ((+) 1) myRecord
 
 -}
 over :
-    (Relation sub sub sub -> Relation super sub wrap)
-    -> (sub -> sub)
-    -> super
-    -> super
+    (Relation attribute attribute y -> Relation structure attribute transformed)
+    -> (attribute -> attribute)
+    -> structure
+    -> structure
 over accessor change s =
     let
         (Relation relation) =
-            accessor id
+            accessor (Relation { get = void, over = \fn -> fn, name = "" })
     in
     relation.over change s
 
@@ -221,25 +246,45 @@ a 1:1 relation with what they contain, such as a record and one of its fields:
 
 -}
 makeOneToOne :
-    String
-    -> (super -> sub)
+    (super -> sub)
     -> ((sub -> sub) -> super -> super)
     -> Relation sub reachable wrap
     -> Relation super reachable wrap
-makeOneToOne n getter mapper (Relation sub) =
-    { get = \super -> sub.get (getter super)
-    , over = \change super -> mapper (sub.over change) super
-    , name = n ++ sub.name
-    }
-        |> Relation
+makeOneToOne =
+    makeOneToOne_ ""
+
+
+{-| This exposes a description field that's necessary for use with the name function
+for getting unique names out of compositions of accessors. This is useful when you
+want type safe keys for a Dictionary but you still want to use elm/core implementation.
+
+    foo : Relation field sub wrap -> Relation { rec | foo : field } sub wrap
+    foo =
+        makeOneToOne_
+            ".foo"
+            .foo
+            (\change rec -> { rec | foo = change rec.foo })
+
+-}
+makeOneToOne_ :
+    String
+    -> (structure -> attribute)
+    -> ((attribute -> attribute) -> structure -> structure)
+    -> Lens structure transformed attribute built
+makeOneToOne_ n getter mapper (Relation sub) =
+    Relation
+        { get = \super -> sub.get (getter super)
+        , over = \change super -> mapper (sub.over change) super
+        , name = n ++ sub.name
+        }
 
 
 {-| This function lets you build an accessor for containers that have
 a 1:N relation with what they contain, such as `List` (0-N cardinality) or
 `Maybe` (0-1). E.g.:
 
-    onEach : Relation elem sub wrap -> Relation (List elem) sub (List wrap)
-    onEach =
+    each : Relation elem sub wrap -> Relation (List elem) sub (List wrap)
+    each =
         makeOneToN
             List.map
             List.map
@@ -248,114 +293,228 @@ n.b. implementing those is usually considerably simpler than the type suggests.
 
 -}
 makeOneToN :
+    ((attribute -> built) -> structure -> transformed)
+    -> ((attribute -> attribute) -> structure -> structure)
+    -- What is reachable here? And this is obviously not Lens so?
+    -> (Relation attribute reachable built -> Relation structure reachable transformed)
+makeOneToN =
+    makeOneToN_ ""
+
+
+{-| This exposes a description field that's necessary for use with the name function
+for getting unique names out of compositions of accessors. This is useful when you
+want type safe keys for a Dictionary but you still want to use elm/core implementation.
+
+    each : Relation elem sub wrap -> Relation (List elem) sub (List wrap)
+    each =
+        makeOneToN_ "[]"
+            List.map
+            List.map
+
+-}
+makeOneToN_ :
     String
-    -> ((sub -> subWrap) -> super -> superWrap)
-    -> ((sub -> sub) -> super -> super)
-    -> Relation sub reachable subWrap
-    -> Relation super reachable superWrap
-makeOneToN n getter mapper (Relation sub) =
-    { get = \super -> getter sub.get super
-    , over = \change super -> mapper (sub.over change) super
+    -> ((attribute -> built) -> structure -> transformed)
+    -> ((attribute -> attribute) -> structure -> structure)
+    -- What is reachable here?
+    -> Relation attribute reachable built
+    -> Relation structure reachable transformed
+makeOneToN_ n getter mapper (Relation sub) =
+    Relation
+        { get = \super -> getter sub.get super
+        , over = \change super -> mapper (sub.over change) super
+        , name = n ++ sub.name
+        }
 
-    -- TODO: This needs to be improved for compositions...
-    , name = n ++ sub.name
-    }
-        |> Relation
 
+{-| This accessor combinator lets you access values inside List.
 
-{-| This accessor combinator lets you access values inside lists.
+    import Accessors exposing (..)
+    import Lens as L
 
+    listRecord : {foo : List {bar : Int}}
     listRecord = { foo = [ {bar = 2}
                          , {bar = 3}
                          , {bar = 4}
                          ]
                  }
 
-    get (foo << onEach << bar) listRecord
-    -- returns [2, 3, 4]
+    get (L.foo << each << L.bar) listRecord
+    --> [2, 3, 4]
 
-    over (foo << onEach << bar) ((+) 1) listRecord
-    -- returns {foo = [{bar = 3}, {bar = 4}, {bar = 5}]}
+    over (L.foo << each << L.bar) ((+) 1) listRecord
+    --> {foo = [{bar = 3}, {bar = 4}, {bar = 5}]}
 
 -}
-list : Relation super sub wrap -> Relation (List super) sub (List wrap)
-list =
-    makeOneToN ":[]" List.map List.map
+each : Relation attribute built transformed -> Relation (List attribute) built (List transformed)
+each =
+    makeOneToN_ ":[]" List.map List.map
 
 
-array : Relation super sub wrap -> Relation (Array super) sub (Array wrap)
-array =
-    makeOneToN "[]" Array.map Array.map
+eachIdx : Relation ( Int, attribute ) reachable ( Int, built ) -> Relation (List attribute) reachable (List built)
+eachIdx =
+    let
+        -- asdf : (( Int, attribute ) -> ( Int, built )) -> List attribute -> List built
+        asdf fn =
+            List.indexedMap
+                (\idx -> Tuple.pair idx >> fn >> Tuple.second)
+    in
+    makeOneToN_ "#[]" asdf asdf
+
+
+{-| This accessor combinator lets you access values inside Array.
+
+    import Array exposing (Array)
+    import Accessors exposing (..)
+    import Lens as L
+
+    arrayRecord : {foo : Array {bar : Int}}
+    arrayRecord =
+        { foo =
+            Array.fromList [{ bar = 2 }, { bar = 3 }, {bar = 4}]
+        }
+
+    get (L.foo << every << L.bar) arrayRecord
+    --> Array.fromList [2, 3, 4]
+
+    over (L.foo << every << L.bar) ((+) 1) arrayRecord
+    --> {foo = Array.fromList [{bar = 3}, {bar = 4}, {bar = 5}]}
+
+-}
+every : Relation super sub wrap -> Relation (Array super) sub (Array wrap)
+every =
+    makeOneToN_ "[]" Array.map Array.map
 
 
 {-| This accessor combinator lets you access values inside Maybe.
 
-    maybeRecord = { foo = Just {bar = 2}
+    import Accessors exposing (..)
+    import Lens as L
+
+    maybeRecord : { foo : Maybe { bar : Int }, qux : Maybe { bar : Int } }
+    maybeRecord = { foo = Just { bar = 2 }
                   , qux = Nothing
                   }
 
-    get (foo << try << bar) maybeRecord
-    -- returns Just 2
+    get (L.foo << try << L.bar) maybeRecord
+    --> Just 2
 
-    get (qux << try << bar) maybeRecord
-    -- returns Nothing
+    get (L.qux << try << L.bar) maybeRecord
+    --> Nothing
 
-    over (foo << try << bar) ((+) 1) maybeRecord
-    -- returns {foo = Just {bar = 3}, qux = Nothing}
+    over (L.foo << try << L.bar) ((+) 1) maybeRecord
+    --> {foo = Just {bar = 3}, qux = Nothing}
 
-    over (qux << try << bar) ((+) 1) maybeRecord
-    -- returns {foo = Just {bar = 2}, qux = Nothing}
+    over (L.qux << try << L.bar) ((+) 1) maybeRecord
+    --> {foo = Just {bar = 2}, qux = Nothing}
 
 -}
 try : Relation sub path wrap -> Relation (Maybe sub) path (Maybe wrap)
 try =
-    makeOneToN "?" Maybe.map Maybe.map
+    makeOneToN_ "?" Maybe.map Maybe.map
 
 
 
--- maybe : Relation (Maybe wrap) reachable a -> Relation (Maybe wrap) reachable a
--- maybe =
---     makeOneToOne "^?"
---         (get try)
---         (set try Just)
--- c_Just =
---     makeOneToN "^?"
---         Maybe.map
---         (\fn m -> Maybe.map fn m)
+--{-| This accessor combinator lets you provide a default value for otherwise failable compositions
+--  TODO: Doesn't do what is expected... :/
+--    import Dict exposing (Dict)
+--    import Lens as L
+--    dict : Dict String {bar : Int}
+--    dict =
+--        Dict.fromList [("foo", {bar = 2})]
+--    get (key "foo" << def {bar = 0}) dict
+--    --> {bar = 2}
+--    get (key "baz" << def {bar = 0}) dict
+--    --> {bar = 0}
+--    get (key "foo" << try << L.bar << def 0) dict
+--    --> 2
+--    get (key "baz" << try << L.bar << def 0) dict
+--    --> 0
+---}
+--def : sub -> Relation sub reachable sub -> Relation (Maybe sub) reachable sub
+--def d =
+--    makeOneToN "??"
+--        (\f -> over try f >> Maybe.withDefault d)
+--        Maybe.map
 
 
 {-| This accessor combinator lets you access Dict members.
 
 In terms of accessors, think of Dicts as records where each field is a Maybe.
 
+    import Dict exposing (Dict)
+    import Accessors exposing (..)
+    import Lens as L
+
+    dict : Dict String {bar : Int}
     dict = Dict.fromList [("foo", {bar = 2})]
 
-    get (dictEntry "foo") dict
-    -- returns Just {bar = 2}
+    get (key "foo") dict
+    --> Just {bar = 2}
 
-    get (dictEntry "baz" dict)
-    -- returns Nothing
+    get (key "baz") dict
+    --> Nothing
 
-    get (dictEntry "foo" << try << bar) dict
-    -- returns Just 2
+    get (key "foo" << try << L.bar) dict
+    --> Just 2
 
-    set (dictEntry "foo") Nothing dict
-    -- returns Dict.remove "foo" dict
+    set (key "foo") Nothing dict
+    --> Dict.remove "foo" dict
 
-    set (dictEntry "baz" << try << bar) 3 dict
-    -- returns dict
+    set (key "baz" << try << L.bar) 3 dict
+    --> dict
 
 -}
 key : comparable -> Relation (Maybe v) reachable wrap -> Relation (Dict comparable v) reachable wrap
 key k =
-    makeOneToOne "{}" (Dict.get k) (Dict.update k)
+    makeOneToOne_ "{}" (Dict.get k) (Dict.update k)
 
 
-at_ : Int -> (Relation v reachable wrap -> Relation (List v) reachable (Maybe wrap))
-at_ idx =
-    makeOneToOne ("[" ++ String.fromInt idx ++ "]?")
-        (ListUtil.getIdx idx)
-        (\fn ls ->
+
+-- keyed : Relation attribute built transformed -> Relation (Dict comparable v) built transformed
+-- keyed =
+--     makeOneToN_ "{_}" (\fn -> Dict.map (Tuple.pair >> fn)) (\fn -> Dict.map (Tuple.pair >> fn))
+
+
+{-| This accessor combinator lets you access Dict members.
+
+In terms of accessors, think of Dicts as records where each field is a Maybe.
+
+    import Accessors exposing (..)
+    import Lens as L
+
+    list : List { bar : String }
+    list = [{ bar = "Stuff" }, { bar =  "Things" }, { bar = "Woot" }]
+
+    get (at 1) list
+    --> Just { bar = "Things" }
+
+    get (at 9000) list
+    --> Nothing
+
+    get (at 0 << L.bar) list
+    --> Just "Stuff"
+
+    set (at 0 << L.bar) "Whatever" list
+    --> [{ bar = "Whatever" }, { bar =  "Things" }, { bar = "Woot" }]
+
+    set (at 9000 << L.bar) "Whatever" list
+    --> list
+
+-}
+at : Int -> Relation v reachable wrap -> Relation (List v) reachable (Maybe wrap)
+at idx =
+    makeOneToOne_ ("(" ++ String.fromInt idx ++ ")")
+        (if idx < 0 then
+            always Nothing
+
+         else
+            List.head << List.drop idx
+        )
+        (\fn ->
+            -- NOTE: `<< try` at the end ensures we can't delete any existing keys
+            -- so `List.filterMap identity` should be safe
+            -- TODO: write this in terms of `foldr` to avoid double iteration.
             List.indexedMap
                 (\idx_ v ->
                     if idx == idx_ then
@@ -364,89 +523,111 @@ at_ idx =
                     else
                         Just v
                 )
-                ls
-                |> List.filterMap identity
+                >> List.filterMap identity
         )
         << try
 
 
-{-| This accessor combinator lets you access a List member at a given index.
+{-| This accessor combinator lets you access Dict members.
 
-    list = ["foo", "bar", "baz"]
+In terms of accessors, think of Dicts as records where each field is a Maybe.
 
-    get (ix 0) list
-    -- returns "bar"
+    import Array exposing (Array)
+    import Accessors exposing (..)
+    import Lens as L
 
-    get (ix 3) list
-    -- returns Nothing
+    arr : Array { bar : String }
+    arr = Array.fromList [{ bar = "Stuff" }, { bar =  "Things" }, { bar = "Woot" }]
 
-    get () dict
-    -- returns Just 2
+    get (ix 1) arr
+    --> Just { bar = "Things" }
 
-    set (dictEntry "foo") Nothing dict
-    -- returns Dict.remove "foo" dict
+    get (ix 9000) arr
+    --> Nothing
 
-    set (dictEntry "baz" << try << bar) 3 dict
-    -- returns dict
+    get (ix 0 << L.bar) arr
+    --> Just "Stuff"
+
+    set (ix 0 << L.bar) "Whatever" arr
+    --> Array.fromList [{ bar = "Whatever" }, { bar =  "Things" }, { bar = "Woot" }]
+
+    set (ix 9000 << L.bar) "Whatever" arr
+    --> arr
 
 -}
-at :
-    Int
-    -> Relation elem value elem
-    -> Relation (List elem) value (List elem)
-at idx =
-    makeOneToN ("(" ++ String.fromInt idx ++ ")")
-        (atMap idx)
-        (atMap idx)
-
-
-atMap : Int -> (a -> a) -> List a -> List a
-atMap idx fn =
-    List.indexedMap
-        (\idx_ v ->
-            if idx_ == idx then
-                fn v
-
-            else
-                v
-        )
-
-
-ix :
-    Int
-    -> Relation elem value elem
-    -> Relation (Array elem) value (Array elem)
+ix : Int -> Relation v reachable wrap -> Relation (Array v) reachable (Maybe wrap)
 ix idx =
-    makeOneToN
+    makeOneToOne_
         ("[" ++ String.fromInt idx ++ "]")
-        (ixMap_ idx)
-        (ixMap_ idx)
+        (Array.get idx)
+        (\fn ->
+            -- NOTE: `<< try` at the end ensures we can't delete any existing keys
+            -- so `List.filterMap identity` should be safe
+            -- TODO: there's a better way to write this no doubt.
+            Array.indexedMap
+                (\idx_ v ->
+                    if idx == idx_ then
+                        fn (Just v)
 
+                    else
+                        Just v
+                )
+                >> Array.foldl
+                    (\e acc ->
+                        case e of
+                            Just v ->
+                                Array.push v acc
 
-ixMap_ : Int -> (a -> a) -> Array a -> Array a
-ixMap_ idx fn =
-    Array.indexedMap
-        (\idx_ v ->
-            if idx_ == idx then
-                fn v
-
-            else
-                v
+                            Nothing ->
+                                acc
+                    )
+                    Array.empty
         )
+        << try
 
 
-one : Lens ( a, x ) ( b, x ) a b
+{-| Lens over the first component of a Tuple
+
+    import Accessors exposing (..)
+
+    charging : (String, Int)
+    charging = ("It's over", 1)
+
+    get one charging
+    --> "It's over"
+
+    set one "It's over" charging
+    --> ("It's over", 1)
+
+    over one (\s -> String.toUpper s ++ "!!!") charging
+    --> ("IT'S OVER!!!", 1)
+
+-}
+one : Relation sub reachable wrap -> Relation ( sub, x ) reachable wrap
 one =
-    makeOneToOne "_1" Tuple.first Tuple.mapFirst
+    makeOneToOne_ "_1" Tuple.first Tuple.mapFirst
 
 
-two : Lens ( x, a ) ( x, b ) a b
+{-|
+
+    import Accessors exposing (..)
+
+    meh : (String, Int)
+    meh = ("It's over", 1)
+
+    get two meh
+    --> 1
+
+    set two 1125 meh
+    --> ("It's over", 1125)
+
+    meh
+        |> set two 1125
+        |> over one (\s -> String.toUpper s ++ "!!!")
+        |> over two ((*) 8)
+    --> ("IT'S OVER!!!", 9000)
+
+-}
+two : Relation sub reachable wrap -> Relation ( x, sub ) reachable wrap
 two =
-    makeOneToOne "_2" Tuple.second Tuple.mapSecond
-
-
-
--- build l val =
---     set l val {{- how do I invent a structure? -}}
--- iso =
---     makeOneToOne "~=" String.toList (\_ -> String.fromList)
+    makeOneToOne_ "_2" Tuple.second Tuple.mapSecond
