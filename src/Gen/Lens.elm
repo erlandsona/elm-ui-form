@@ -3,6 +3,21 @@ module Gen.Lens exposing (..)
 import Accessors exposing (Lens, makeOneToOne_)
 
 
+address : Lens { record | address : attribute } transformed attribute built
+address =
+    makeOneToOne_ ".address" .address (\f r -> { r | address = f r.address })
+
+
+zip : Lens { record | zip : attribute } transformed attribute built
+zip =
+    makeOneToOne_ ".zip" .zip (\f r -> { r | zip = f r.zip })
+
+
+street : Lens { record | street : attribute } transformed attribute built
+street =
+    makeOneToOne_ ".street" .street (\f r -> { r | street = f r.street })
+
+
 age : Lens { record | age : attribute } transformed attribute built
 age =
     makeOneToOne_ ".age" .age (\f r -> { r | age = f r.age })

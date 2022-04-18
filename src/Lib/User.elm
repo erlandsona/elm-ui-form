@@ -1,9 +1,17 @@
-module Lib.User exposing (User, decoder, encode)
+module Lib.User exposing (Street(..), User, Zip(..), decoder, encode)
 
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode as D exposing (Decoder)
 import Json.Encode as Encode
 import Util.Email as Email exposing (Email)
 import Util.Maybe as MaybeUtil
+
+
+type Zip
+    = Zip Int
+
+
+type Street
+    = Street String
 
 
 type alias User =
@@ -11,18 +19,25 @@ type alias User =
     , name : String
     , email : Maybe Email
     , altEmails : List Email
+    , address : ( Zip, Street )
     }
 
 
 decoder : Decoder User
 decoder =
-    Decode.map4 User
-        (Decode.field "id" Decode.int)
-        (Decode.field "name" Decode.string)
-        (Decode.field "email" (Decode.nullable Email.decoder))
-        (Decode.field "alt_emails"
-            (Decode.list (Decode.maybe Email.decoder)
-                |> Decode.map (List.filterMap identity)
+    D.map5 User
+        (D.field "id" D.int)
+        (D.field "name" D.string)
+        (D.field "email" (D.nullable Email.decoder))
+        (D.field "alt_emails"
+            (D.list (D.maybe Email.decoder)
+                |> D.map (List.filterMap identity)
+            )
+        )
+        (D.field "address"
+            (D.map2 Tuple.pair
+                (D.index 0 D.int |> D.map Zip)
+                (D.index 1 D.string |> D.map Street)
             )
         )
 

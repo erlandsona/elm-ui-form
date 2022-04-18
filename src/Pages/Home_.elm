@@ -30,7 +30,7 @@ page shared _ =
             ( { form = Form.init { idPrefix = "user-form" }
               }
             , Process.sleep 1000
-                |> Task.perform (always GotData)
+                |> Task.perform (always (GotData remoteUserData))
             )
         , update = update
         , view = view shared.time
@@ -56,16 +56,36 @@ type alias Form =
 
 type Msg
     = FormMsg Form
-    | GotData
+    | GotData UserData
+
+
+type alias UserData =
+    { id : Int
+    , name : String
+    , email : String
+    , altEmails : List String
+    , address : ( Int, String )
+    }
+
+
+remoteUserData : UserData
+remoteUserData =
+    { id = 1
+    , name = "Me"
+    , email = "me@gmail.com"
+    , altEmails = [ "you@gmail.com" ]
+    , address = ( 12345, "1234 5th Ave" )
+    }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg =
     case msg of
-        GotData ->
+        GotData user ->
             over Lens.form
-                (set (Form.int (Lens.data << Lens.id)) (Just 1)
-                    >> set (Form.str (Lens.data << Lens.name)) (Just "Austin")
+                (set (Form.int (Lens.data << Lens.id)) (Just user.id)
+                    >> set (Form.str (Lens.data << Lens.name)) (Just user.name)
+                 -- >> set (Form.tuple (Lens.data << Lens.address) ( Lens.zip, Lens.street )) user.address
                  -- >> set (Form.list Form.str (Lens.data << Lens.altEmails)) [ "bob@gmail.com" ]
                 )
                 >> none

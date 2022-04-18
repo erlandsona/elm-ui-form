@@ -4,6 +4,7 @@ module UI.Form exposing
     , remove
     , checkbox, underlined
     , Config, field, kind, parser, floatError
+    , tuple
     -- , Key, key
     -- , get, get_, getBool, getBool_, getInt, getList
     -- , set, setBool, setInt
@@ -158,24 +159,42 @@ bool lens =
         )
 
 
+{-| tuple
+set (Form.tuple (Form.int Lens.id, Form.str Lens.name)) (1, "Things") form
+-}
 
--- {-| tuple
--- -}
+
+
 -- tuple :
---     ( Lens (Model value) transformed (Maybe a) built
---     , Lens (Model value) transformed (Maybe b) built
---     )
+--     Lens value transformed attribute built
+--     -> ( Lens (Model value) transformed (Maybe a) built
+--        , Lens (Model value) transformed (Maybe b) built
+--        )
 --     -> Lens (Model value) transformed (Maybe ( a, b )) built
--- tuple ( la, lb ) =
---     A.makeOneToOne_ ("(" ++ name la ++ "," ++ name lb ++ ")")
---         (\d ->
---             Maybe.map2 Tuple.pair
---                 (get la d)
---                 (get lb d)
---         )
---         1
---         -- (\fn (a, b) ->
---         --     )
+
+
+tuple root ( la, lb ) =
+    A.makeOneToOne_ (name root ++ "(" ++ name la ++ "," ++ name lb ++ ")")
+        (\d -> ( get (root << la) d, get (root << lb) d ))
+        --     (( Maybe a, Maybe b ) -> ( Maybe a, Maybe b )) -> structure -> structure
+        (\fn d ->
+            let
+                a =
+                    get (root << la) d
+
+                b =
+                    get (root << lb) d
+
+                ( newA, newB ) =
+                    fn ( a, b )
+            in
+            d
+                |> set (root << la) newA
+                |> set lb newB
+        )
+
+
+
 -- map2 : (a -> b -> value)
 --    -> Property (Model value) (Model a) wrapA
 --    -> Property (Model value) (Model b) wrapB
