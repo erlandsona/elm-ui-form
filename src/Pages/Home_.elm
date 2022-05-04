@@ -1,13 +1,13 @@
 module Pages.Home_ exposing (Model, Msg, page)
 
-import Accessors exposing (get, over, set)
+import Accessors exposing (at, eachIdx, fst, get, over, set, snd)
 import Element.WithContext as E
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Input as Input
 import Gen.Lens as Lens
 import Gen.Params.Home_ exposing (Params)
-import Lib.User as User exposing (User)
+import Lib.User exposing (User)
 import Page
 import Process
 import Request
@@ -18,7 +18,7 @@ import UI.Field as Field exposing (Description(..))
 import UI.Form as Form
 import UI.Time
 import Util.Email as Email
-import Util.List as ListUtil
+import Util.Fn exposing (flip)
 import Util.String as StringUtil
 import View exposing (View)
 
@@ -82,11 +82,21 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg =
     case msg of
         GotData user ->
+            let
+                setEmail : ( Int, String ) -> Form -> Form
+                setEmail ( idx_, email ) =
+                    set (Form.str (Lens.data << Lens.altEmails << at idx_)) (Just email)
+
+                setEmails : Form -> Form
+                setEmails form =
+                    List.foldr setEmail form (get eachIdx user.altEmails)
+            in
             over Lens.form
                 (set (Form.int (Lens.data << Lens.id)) (Just user.id)
                     >> set (Form.str (Lens.data << Lens.name)) (Just user.name)
-                 -- >> set (Form.tuple (Lens.data << Lens.address) ( Lens.zip, Lens.street )) user.address
-                 -- >> set (Form.list Form.str (Lens.data << Lens.altEmails)) [ "bob@gmail.com" ]
+                    >> setEmails
+                    >> set (Form.int (Lens.data << Lens.address << fst)) (Just (Tuple.first user.address))
+                    >> set (Form.str (Lens.data << Lens.address << snd)) (Just (Tuple.second user.address))
                 )
                 >> none
 
@@ -104,7 +114,7 @@ none m =
 
 
 view : Time.Posix -> Model -> View Msg
-view time ({ form } as model) =
+view time { form } =
     { title = "Homepage"
     , body =
         E.column
@@ -165,7 +175,7 @@ view time ({ form } as model) =
                             }
                             form
                         :: []
-                     -- :: (let
+                     -- (let
                      --         altEmails =
                      --             Form.getList (Lens.data << Lens.altEmails) form
                      --         nextIdx : Int
@@ -174,14 +184,14 @@ view time ({ form } as model) =
                      --     in
                      --     Input.button []
                      --         { label = E.text "Add Alternate Email"
-                     --         , onPress = Just (Form.set (Lens.data << Lens.altEmails << ListUtil.atIdx nextIdx) "" form)
+                     --         , onPress = Just (set (Form.str (Lens.data << Lens.altEmails << at nextIdx)) (Just "") form)
                      --         }
                      --         :: List.map
-                     --             (\( idx, _ ) ->
+                     --             (\( idx, _, _ ) ->
                      --                 E.row [ E.spacing 10 ]
                      --                     [ Form.field
                      --                         { description = Label [] ("Email " ++ String.fromInt idx)
-                     --                         , key = Lens.data << Lens.altEmails << ListUtil.atIdx idx
+                     --                         , key = Lens.data << Lens.altEmails << at idx
                      --                         , parser = Email.parse
                      --                         }
                      --                         |> Form.underlined form
@@ -189,7 +199,7 @@ view time ({ form } as model) =
                      --                             ]
                      --                     , Input.button []
                      --                         { label = E.text "Delete"
-                     --                         , onPress = Just (Form.remove (Lens.data << Lens.altEmails << ListUtil.atIdx idx) form)
+                     --                         , onPress = Just (Form.remove (Lens.data << Lens.altEmails << at idx) form)
                      --                         }
                      --                     ]
                      --             )

@@ -8,6 +8,11 @@ address =
     makeOneToOne_ ".address" .address (\f r -> { r | address = f r.address })
 
 
+altEmails : Lens { record | altEmails : attribute } transformed attribute built
+altEmails =
+    makeOneToOne_ ".altEmails" .altEmails (\f r -> { r | altEmails = f r.altEmails })
+
+
 zip : Lens { record | zip : attribute } transformed attribute built
 zip =
     makeOneToOne_ ".zip" .zip (\f r -> { r | zip = f r.zip })

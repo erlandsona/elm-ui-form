@@ -1,13 +1,14 @@
 module UI.Form exposing
-    ( Model, showErrors
+    ( Model
     , init, bool, int, str
     , remove
     , checkbox, underlined
     , Config, field, kind, parser, floatError
-    , tuple
-    -- , Key, key
-    -- , get, get_, getBool, getBool_, getInt, getList
-    -- , set, setBool, setInt
+    ,  getList
+      , showErrors
+        -- , setList
+        -- ,  tuple
+
     )
 
 {-| Form Builder
@@ -15,13 +16,9 @@ module UI.Form exposing
 
 # Model
 
-@docs Model, showErrors
+@docs Model
 @docs init, bool, int, str
-@docs get, get_, getBool, getBool_, getInt, getList
-@docs set, setBool, setInt
 @docs remove
-@docs Prop
-@docs Key, key
 
 
 # View
@@ -46,8 +43,6 @@ import Style.Size as Size
 import UI exposing (Attributes, Element)
 import UI.Field as Field
 import Util.Bool as BoolUtil
-import Util.Fn exposing (flip)
-import Util.List as ListUtil
 import Util.Maybe as MaybeUtil
 import Util.String as StringUtil
 
@@ -171,30 +166,24 @@ set (Form.tuple (Form.int Lens.id, Form.str Lens.name)) (1, "Things") form
 --        , Lens (Model value) transformed (Maybe b) built
 --        )
 --     -> Lens (Model value) transformed (Maybe ( a, b )) built
-
-
-tuple root ( la, lb ) =
-    A.makeOneToOne_ (name root ++ "(" ++ name la ++ "," ++ name lb ++ ")")
-        (\d -> ( get (root << la) d, get (root << lb) d ))
-        --     (( Maybe a, Maybe b ) -> ( Maybe a, Maybe b )) -> structure -> structure
-        (\fn d ->
-            let
-                a =
-                    get (root << la) d
-
-                b =
-                    get (root << lb) d
-
-                ( newA, newB ) =
-                    fn ( a, b )
-            in
-            d
-                |> set (root << la) newA
-                |> set lb newB
-        )
-
-
-
+-- -- tuple : Lens structure transformed ( a, b ) built -> ( relA, relB ) -> Relation unsure built transformed -> Relation ( a, b ) built transformed
+-- tuple root ( la, lb ) =
+--     A.makeOneToOne_ (name root ++ "(" ++ name la ++ "," ++ name lb ++ ")")
+--         (\d -> ( get (root << la) d, get (root << lb) d ))
+--         --     (( Maybe a, Maybe b ) -> ( Maybe a, Maybe b )) -> structure -> structure
+--         (\fn d ->
+--             let
+--                 a =
+--                     get (root << la) d
+--                 b =
+--                     get (root << lb) d
+--                 ( newA, newB ) =
+--                     fn ( a, b )
+--             in
+--             d
+--                 |> set (root << la) newA
+--                 |> set lb newB
+--         )
 -- map2 : (a -> b -> value)
 --    -> Property (Model value) (Model a) wrapA
 --    -> Property (Model value) (Model b) wrapB
@@ -215,6 +204,50 @@ tuple root ( la, lb ) =
 -- andMap : ()
 -- list : Prop (Model value) field wrap -> Property value field wrap -> Prop (Model value) (List field) wrap
 -- list formL
+-- setList :
+--     Lens structure (Maybe transformed) (List String) (Maybe build)
+--     -> List String
+--     -> Model structure
+--     -> Model structure
+-- setList lens ls f =
+--     List.foldr
+--         (\( idx, data ) ->
+--             let
+--                 -- lhs : Lens structure transformed String (Maybe build)
+--                 lhs :
+--                     Relation String (Maybe build) transformed
+--                     -> Relation structure (Maybe build) (Maybe transformed)
+--                 lhs =
+--                     lens << A.at idx
+--             in
+--             set (str lhs) data
+--         )
+--         f
+--         (get A.eachIdx ls)
+
+
+getList : Lens structure transformed attribute build -> Model structure -> List ( Int, String, String )
+getList lens (Model { form }) =
+    form
+        |> Dict.toList
+        |> List.filterMap
+            (\( k, val ) ->
+                k
+                    |> String.dropLeft (String.length (name lens))
+                    |> String.split "["
+                    |> List.filterMap
+                        (\s ->
+                            case String.split "]" s of
+                                hd :: rest ->
+                                    Maybe.map
+                                        (\id -> ( id, String.concat rest, val ))
+                                        (String.toInt hd)
+
+                                _ ->
+                                    Nothing
+                        )
+                    |> List.head
+            )
 
 
 remove : Lens value reachable field wrap -> Model value -> Model value
