@@ -251,13 +251,13 @@ getList lens (Model { form }) =
 
 
 remove : Lens value reachable field wrap -> Model value -> Model value
-remove lens (Model i) =
-    Model (over Lens.form (Dict.remove (name lens)) i)
+remove lens =
+    A.over formL (Dict.remove (name lens))
 
 
 showErrors : Model value -> Model value
-showErrors (Model i) =
-    Model (A.set Lens.showErrors True i)
+showErrors =
+    A.set (c_Model << Lens.showErrors) True
 
 
 
